@@ -1,3 +1,5 @@
+#include "pch.h"
+
 // ImGui Platform Binding for: Windows (standard windows API for 32 and 64 bits applications)
 // This needs to be used along with a Renderer (e.g. DirectX11, OpenGL3, Vulkan..)
 
@@ -6,7 +8,6 @@
 //  [X] Platform: Mouse cursor shape and visibility. Disable with 'io.ConfigFlags |= ImGuiConfigFlags_NoMouseCursorChange'.
 //  [X] Platform: Keyboard arrays indexed using VK_* Virtual Key Codes, e.g. ImGui::IsKeyPressed(VK_SPACE).
 
-#include "../pch.h"
 
 #include "imgui.h"
 #include "imgui_impl_win32.h"

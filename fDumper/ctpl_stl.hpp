@@ -225,10 +225,10 @@ namespace ctpl {
 	private:
 
 		// deleted
-		thread_pool(const thread_pool &); // = delete;
-		thread_pool(thread_pool &&); // = delete;
-		thread_pool & operator=(const thread_pool &); // = delete;
-		thread_pool & operator=(thread_pool &&); // = delete;
+		thread_pool(const thread_pool &) = delete;
+		thread_pool(thread_pool &&) = delete;
+		thread_pool & operator=(const thread_pool &) = delete;
+		thread_pool & operator=(thread_pool &&) = delete;
 
 		void set_thread(int i) {
 			std::shared_ptr < std::atomic<bool>> flag(this->flags[i]); // a copy of the shared ptr to the flag

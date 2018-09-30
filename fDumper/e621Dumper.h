@@ -11,12 +11,9 @@ public:
 	~CE621Dumper();
 	
 	virtual int Download()override;
-	virtual int QueryAPI()override;
-
-	bool CommandSyntax();
 
 private:
 	std::string m_tags;
 
-	std::shared_ptr<CURL> m_curl;
+	CURL* m_pCurl;
 };

@@ -2,14 +2,14 @@
 
 #include "e621Dumper.h"
 
-CE621Dumper::CE621Dumper(std::string tags) : m_tags(tags), m_curl(std::make_shared<CURL>(curl_easy_init()))
+CE621Dumper::CE621Dumper(std::string tags) : m_tags(tags), m_pCurl(curl_easy_init())
 {
 
 }
 
 CE621Dumper::~CE621Dumper()
 {
-	curl_easy_cleanup(m_curl.get());
+	curl_easy_cleanup(m_pCurl);
 }
 
 int CE621Dumper::Download()
@@ -17,12 +17,3 @@ int CE621Dumper::Download()
 	return 0;
 }
 
-int CE621Dumper::QueryAPI()
-{
-	return 0;
-}
-
-bool CE621Dumper::CommandSyntax()
-{
-
-}

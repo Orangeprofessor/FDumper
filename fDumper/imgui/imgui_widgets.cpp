@@ -1,3 +1,5 @@
+#include "pch.h"
+
 // dear imgui, v1.65
 // (widgets code)
 
@@ -25,8 +27,6 @@ Index of this file:
 
 */
 
-
-#include "../pch.h"
 
 #include "imgui.h"
 #ifndef IMGUI_DEFINE_MATH_OPERATORS

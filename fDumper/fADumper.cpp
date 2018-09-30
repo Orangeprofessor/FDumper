@@ -1,354 +1,266 @@
 #include "pch.h"
 
 #include "fADumper.h"
-#include "ctpl_stl.hpp"
-#include "rapidxml/rapidxml_wrap.hpp"
 #include "Log.h"
+#include "ctpl_stl.hpp"
 
-#include <libda3m0n/Misc/Utils.h>
-#include <filesystem>
 #include <ShlObj.h>
+#include <libda3m0n/Misc/Utils.h>
 
 
-
-CFADumper::CFADumper(const std::string & apiurl) : m_apiurl(apiurl), m_pCurl(curl_easy_init())
+CFADumper::CFADumper(const std::string apiurl, std::string uname, std::wstring savedir, int rating, int gallery, bool scrapfolder) : m_apiurl(apiurl), m_uHandle(uname),
+m_saveDirectory(savedir), m_rating((faRatingFlags)rating), m_gallery((faGalleryFlags)gallery), m_scrapfolder(scrapfolder)
 {
+
 }
 
 CFADumper::~CFADumper()
 {
-	curl_easy_cleanup(m_pCurl);
-}
 
-int tDownload(int id, CFADumper::faPathUrl sel, CFADumper* self) {
-	auto filename = sel.second;
-	auto filenamepos = filename.find_last_of('/');
-	filename.erase(0, filenamepos + 1);
-	self->m_imagename.operator=(filename);
-	int ret = self->CurlDownload(sel.second, sel.first);
-	self->m_currentIdx.operator=(+1);
-	return ret;
 }
 
 int CFADumper::Download()
 {
+	m_status.operator=("Downloading submission data...");
 
-
-	if (m_contentflags == SCRAPS_ONLY)
+	if (m_gallery == faGalleryFlags::SCRAPS_ONLY)
 	{
-		auto gallery = GetScrapGallery();
-		m_currentIdx.operator=(1);
-		m_totalImages.operator=(gallery.size());
-		m_finishedDl.operator=(false);
-		ctpl::thread_pool threads(4);
-
-		size_t i = 0;
-		int numthreads = 0;
-		for (auto image : gallery)
+		if (m_scrapfolder)
 		{
-			if (numthreads < 3) {
-				do
-				{
-					std::this_thread::sleep_for(std::chrono::milliseconds(10));
-				} while (threads.n_idle() >= 2);
-			}
-
-			threads.push(tDownload, image, this);
+			m_saveDirectory += L"\\" + std::wstring(L"Scraps");
+			CreateDirectory(m_saveDirectory.c_str(), NULL);
 		}
 
-		m_finishedDl.operator=(true);
-		threads.stop(true);
+		if (m_rating == faRatingFlags::NSFW_ONLY)
+		{
+			auto fullgallery = GetScrapGallery(false);
+
+			fullgallery.erase(std::remove_if(fullgallery.begin(), fullgallery.end(), [&](FASubmission sub) {
+				return sub.GetRating() == 1;
+			}), fullgallery.end());
+
+			// now download
+			DownloadInternal(fullgallery);
+		}
+		else if (m_rating == faRatingFlags::SFW_ONLY)
+		{
+			auto gallery = GetScrapGallery(true);
+
+			// download
+			DownloadInternal(gallery);
+		}
+		else
+		{
+			auto fullgallery = GetScrapGallery(false);
+
+			// download
+			DownloadInternal(fullgallery);
+		}
+
 
 		return 0;
 	}
 
 
-	auto maingallery = GetMainGallery();
-	if (m_scrapflags != SCRAPS_ONLY) {
-		auto scrapgallery = GetScrapGallery();
-		maingallery.insert(maingallery.end(), scrapgallery.begin(), scrapgallery.end());
-	}
-
-	ctpl::thread_pool threads(4);
-
-	size_t i = 0;
-	int numthreads = 0;
-	m_currentIdx.operator=(1);
-	m_totalImages.operator=(maingallery.size());
-	m_finishedDl.operator=(false);
-	for (auto image : maingallery)
+	if (m_rating == faRatingFlags::NSFW_ONLY)
 	{
-		if (numthreads < 3) {
-			do
+		auto fullgallery = GetMainGallery(false);
+
+		fullgallery.erase(std::remove_if(fullgallery.begin(), fullgallery.end(), [&](FASubmission sub) {
+			return sub.GetRating() == 1;
+		}), fullgallery.end());
+
+		// now download
+		DownloadInternal(fullgallery);
+
+		// now do scraps if wanted
+		if (m_gallery != faGalleryFlags::NO_SCRAPS)
+		{
+			auto fullscrapgallery = GetScrapGallery(false);
+
+			fullscrapgallery.erase(std::remove_if(fullscrapgallery.begin(), fullscrapgallery.end(), [&](FASubmission sub) {
+				return sub.GetRating() == 1;
+			}), fullscrapgallery.end());
+
+			if (m_scrapfolder)
 			{
-				std::this_thread::sleep_for(std::chrono::milliseconds(10));
-			} while (threads.n_idle() >= 2);
+				m_saveDirectory += L"\\" + std::wstring(L"Scraps");
+				CreateDirectory(m_saveDirectory.c_str(), NULL);
+			}
+
+			DownloadInternal(fullscrapgallery);
 		}
-
-		threads.push(tDownload, image, this);
 	}
+	else if (m_rating == faRatingFlags::SFW_ONLY)
+	{
+		auto gallery = GetMainGallery(true);
 
-	m_finishedDl.operator=(true);
-	threads.stop(true);
+		DownloadInternal(gallery);
+
+		if (m_gallery != faGalleryFlags::NO_SCRAPS) {
+			auto scrapgallery = GetScrapGallery(true);
+			if (m_scrapfolder)
+			{
+				m_saveDirectory += L"\\" + std::wstring(L"Scraps");
+				CreateDirectory(m_saveDirectory.c_str(), NULL);
+			}
+			DownloadInternal(scrapgallery);
+		}
+	}
+	else
+	{
+		auto fullgallery = GetMainGallery(false);
+
+		DownloadInternal(fullgallery);
+
+		if (m_gallery != faGalleryFlags::NO_SCRAPS) {
+			auto scrapgallery = GetScrapGallery(false);
+			if (m_scrapfolder)
+			{
+				m_saveDirectory += L"\\" + std::wstring(L"Scraps");
+				CreateDirectory(m_saveDirectory.c_str(), NULL);
+			}
+			DownloadInternal(scrapgallery);
+		}
+	}
 
 	return 0;
 }
 
-int CFADumper::QueryAPI()
+std::vector<FASubmission> CFADumper::GetMainGallery(bool sfw)
 {
+	LockAssignable<std::vector<FASubmission>> gallery;
 
-	return 0;
-}
+	wchar_t tempbuff[MAX_PATH] = {};
+	GetTempPath(MAX_PATH, tempbuff);
 
-std::vector<CFADumper::faPathUrl> CFADumper::GetMainGallery()
-{
-	wchar_t tempbuff[MAX_PATH];
-	GetTempPath(sizeof(tempbuff), tempbuff);
+	m_currentIdx.operator=(0);
+	m_totalImages.operator=(0);
+	m_isDownloading.operator=(true);
 
-	// Get submission pages
-	std::vector<std::string> vecsubids;
 	int curpage = 1;
 	while (true)
 	{
-		char urlbuff[100];
-
-		if (m_contentflags == SFW_ONLY) {
-			std::sprintf(urlbuff, "%s/%s?sfw=1&page=%d", m_apiurl.c_str(), m_uHandle.c_str(), curpage);
+		char urlbuff[200] = {};
+		if (sfw) {
+			std::sprintf(urlbuff, "%s/user/%s/gallery.json?sfw=1&page=%d", m_apiurl.c_str(), m_uHandle.c_str(), curpage);
 		}
 		else {
-			std::sprintf(urlbuff, "%s/%s?page=%d", m_apiurl.c_str(), m_uHandle.c_str(), curpage);
+			std::sprintf(urlbuff, "%s/user/%s/gallery.json?page=%d", m_apiurl.c_str(), m_uHandle.c_str(), curpage);
 		}
 
-		std::wstring xmlpath;
-		xmlpath.assign(tempbuff);
-		xmlpath += L"\\" + libdaemon::Utils::AnsiToWstring(m_uHandle) + std::to_wstring(curpage) + std::wstring(L".xml");
+		std::wstring submissions;
+		submissions.assign(tempbuff);
+		submissions += L"\\" + libdaemon::Utils::AnsiToWstring(m_uHandle) + std::to_wstring(curpage) + std::wstring(L".json");
 
-		CurlDownload(urlbuff, xmlpath);
+		if (CurlDownload(urlbuff, submissions)) {
 
-		acut::XmlDoc<char> xml;
-		xml.read_from_file(xmlpath);
-		
-
-		int marks = 0;
-
-		for (auto subids : xml.all_children_of("submissions")) {
-			++marks;
-			vecsubids.push_back(subids.value());
 		}
 
-		_wremove(xmlpath.c_str());
+		std::ifstream ifs(submissions);
+		rapidjson::IStreamWrapper isw(ifs);
+
+		rapidjson::Document doc;
+		doc.ParseStream(isw);
+
+		ifs.close();
+
+		auto total = m_totalImages.operator size_t();
+		m_totalImages.operator=(total + doc.Size());
+
+		ctpl::thread_pool threads(4);
+
+		for (auto itr = doc.Begin(); itr != doc.End(); ++itr)
+		{
+			std::string jsonElm = itr->GetString();
+			int subID = std::stoi(jsonElm);
+
+			threads.push(ThreadedSubmissionDownload, subID, &gallery, this);
+		}
+
+		while (threads.n_idle() != threads.size())
+			std::this_thread::sleep_for(std::chrono::milliseconds(50));
+
+		threads.stop();
 
 		++curpage;
-		if (marks < 72)
+		if (doc.Size() < 72)
 			break;
 	}
 
-	curpage = 1;
+	m_isDownloading.operator=(false);
 
-	// redownload and compare
-	if (m_contentflags == NSFW_ONLY)
-	{
-		std::vector<std::string> sfwids;
-		while (true)
-		{
-			char urlbuff[100];
-
-			std::sprintf(urlbuff, "%s/%s/gallery.xml?sfw=1&page=%d", m_apiurl.c_str(), m_uHandle.c_str(), curpage);
-
-			std::wstring xmlpath;
-			xmlpath.assign(tempbuff);
-			xmlpath += L"\\" + libdaemon::Utils::AnsiToWstring(m_uHandle) + std::to_wstring(curpage) + std::wstring(L".xml");
-
-			CurlDownload(urlbuff, xmlpath);
-
-			acut::XmlDoc<char> xml;
-			xml.read_from_file(xmlpath);
-
-			int marks = 0;
-
-			for (auto subids : xml.all_children_of("submissions")) {
-				++marks;
-				sfwids.push_back(subids.value());
-			}
-
-			_wremove(xmlpath.c_str());
-
-			++curpage;
-			if (marks < 72)
-				break;
-		}
-
-		for (auto sfw : sfwids)
-		{
-			auto it = std::find(vecsubids.begin(), vecsubids.end(), sfw);
-
-			if (it != std::end(vecsubids)) {
-				vecsubids.erase(it);
-			}
-		}
-
-	}
-
-	// now since we have a bunch of ids, lets get the actual download link
-	std::vector<faPathUrl> vecdlIDs;
-
-	for (auto subid : vecsubids)
-	{
-		char subbuff[100];
-		std::sprintf(subbuff, "%s/submission/%s.xml", m_apiurl.c_str(), subid.c_str());
-
-		std::wstring subxmlpath;
-		subxmlpath.assign(tempbuff);
-		subxmlpath += L"\\" + std::wstring(L"fa") + libdaemon::Utils::AnsiToWstring(subid) + std::wstring(L".xml");
-
-		CurlDownload(subbuff, subxmlpath);
-
-		acut::XmlDoc<char> subxml;
-		subxml.read_from_file(subxmlpath);
-
-
-		for (auto subkey : subxml.all_children_of("submission"))
-		{
-			if (!subkey.name().compare("download"))
-			{
-				std::wstring filename = libdaemon::Utils::AnsiToWstring(subkey.value());
-				auto filenamepos = filename.find_last_of('/');
-				filename.erase(0, filenamepos + 1);
-				vecdlIDs.push_back(faPathUrl(m_saveDirectory + L"\\" + filename, libdaemon::Utils::WstringToAnsi(filename)));
-				break;
-			}
-		}
-		_wremove(subxmlpath.c_str());
-	}
-
-	return vecdlIDs;
+	return gallery.operator std::vector<FASubmission, std::allocator<FASubmission>>();
 }
 
-std::vector<CFADumper::faPathUrl> CFADumper::GetScrapGallery()
+std::vector<FASubmission> CFADumper::GetScrapGallery(bool sfw)
 {
-	wchar_t tempbuff[MAX_PATH];
-	GetTempPath(sizeof(tempbuff), tempbuff);
+	LockAssignable<std::vector<FASubmission>> scraps;
 
-	// Get submission pages
-	std::vector<std::string> vecsubids;
+	wchar_t tempbuff[MAX_PATH] = {};
+	GetTempPath(MAX_PATH, tempbuff);
+
+	m_currentIdx.operator=(0);
+	m_totalImages.operator=(0);
+	m_isDownloading.operator=(true);
+
 	int curpage = 1;
 	while (true)
 	{
-		char urlbuff[100];
+		char urlbuff[200] = {};
 
-		if (m_contentflags == SFW_ONLY) {
-			std::sprintf(urlbuff, "%s/scraps/%s?sfw=1&page=%d", m_apiurl.c_str(), m_uHandle.c_str(), curpage);
+		if (sfw) {
+			std::sprintf(urlbuff, "%s/user/%s/scraps.json?sfw=1&page=%d", m_apiurl.c_str(), m_uHandle.c_str(), curpage);
 		}
 		else {
-			std::sprintf(urlbuff, "%s/scrpas/%s?page=%d", m_apiurl.c_str(), m_uHandle.c_str(), curpage);
+			std::sprintf(urlbuff, "%s/user/%s/scraps.json?page=%d", m_apiurl.c_str(), m_uHandle.c_str(), curpage);
 		}
 
-		std::wstring xmlpath;
-		xmlpath.assign(tempbuff);
-		xmlpath += L"\\" + libdaemon::Utils::AnsiToWstring(m_uHandle) + std::to_wstring(curpage) + std::wstring(L".xml");
+		std::wstring submissions;
+		submissions.assign(tempbuff);
+		submissions += L"\\" + libdaemon::Utils::AnsiToWstring(m_uHandle) + std::to_wstring(curpage) + std::wstring(L".json");
 
-		CurlDownload(urlbuff, xmlpath);
+		if (CurlDownload(urlbuff, submissions)) {
 
-		acut::XmlDoc<char> xml;
-		xml.read_from_file(xmlpath);
-
-		int marks = 0;
-
-		for (auto subids : xml.all_children_of("submissions")) {
-			++marks;
-			vecsubids.push_back(subids.value());
 		}
 
-		_wremove(xmlpath.c_str());
+		std::ifstream ifs(submissions);
+		rapidjson::IStreamWrapper isw(ifs);
+
+		rapidjson::Document doc;
+		doc.ParseStream(isw);
+
+		ifs.close();
+
+		auto total = m_totalImages.operator size_t();
+		m_totalImages.operator=(total + doc.Size());
+
+		ctpl::thread_pool threads(4);
+
+		for (auto itr = doc.Begin(); itr != doc.End(); ++itr)
+		{
+			std::string jsonElm = itr->GetString();
+			int subID = std::stoi(jsonElm);
+
+			threads.push(ThreadedSubmissionDownload, subID, &scraps, this);
+		}
+
+		while (threads.n_idle() != threads.size())
+			std::this_thread::sleep_for(std::chrono::milliseconds(50));
+
+		threads.stop();
 
 		++curpage;
-		if (marks < 72)
+		if (doc.Size() < 72)
 			break;
 	}
 
-	curpage = 1;
+	m_isDownloading.operator=(false);
 
-	// redownload and compare
-	if (m_contentflags == NSFW_ONLY)
-	{
-		std::vector<std::string> sfwids;
-		while (true)
-		{
-			char urlbuff[100];
-
-			std::sprintf(urlbuff, "%s/scraps/%s?sfw=1&page=%d", m_apiurl.c_str(), m_uHandle.c_str(), curpage);
-
-			std::wstring xmlpath;
-			xmlpath.assign(tempbuff);
-			xmlpath += L"\\" + libdaemon::Utils::AnsiToWstring(m_uHandle) + std::to_wstring(curpage) + std::wstring(L".xml");
-
-			CurlDownload(urlbuff, xmlpath);
-
-			acut::XmlDoc<char> xml;
-			xml.read_from_file(xmlpath);
-
-			int marks = 0;
-
-			for (auto subids : xml.all_children_of("submissions")) {
-				++marks;
-				sfwids.push_back(subids.value());
-			}
-
-			_wremove(xmlpath.c_str());
-
-			++curpage;
-			if (marks < 72)
-				break;
-		}
-
-		for (auto sfw : sfwids)
-		{
-			auto it = std::find(vecsubids.begin(), vecsubids.end(), sfw);
-
-			if (it != std::end(vecsubids)) {
-				vecsubids.erase(it);
-			}
-		}
-
-	}
-
-	// now since we have a bunch of ids, lets get the actual download link
-	std::vector<faPathUrl> vecdlIDs;
-
-	for (auto subid : vecsubids)
-	{
-		char subbuff[100];
-		std::sprintf(subbuff, "%s/submission/%s.xml", m_apiurl.c_str(), subid.c_str());
-
-		std::wstring subxmlpath;
-		subxmlpath.assign(tempbuff);
-		subxmlpath += L"\\" + std::wstring(L"fa") + libdaemon::Utils::AnsiToWstring(subid) + std::wstring(L".xml");
-
-		CurlDownload(subbuff, subxmlpath);
-
-		acut::XmlDoc<char> subxml;
-		subxml.read_from_file(subxmlpath);
-
-
-		for (auto subkey : subxml.all_children_of("submission"))
-		{
-			if (!subkey.name().compare("download"))
-			{
-				std::wstring filename = libdaemon::Utils::AnsiToWstring(subkey.value());
-				auto filenamepos = filename.find_last_of('/');
-				filename.erase(0, filenamepos + 1);
-				vecdlIDs.push_back(faPathUrl(m_saveDirectory + L"\\" + filename, libdaemon::Utils::WstringToAnsi(filename)));
-				break;
-			}
-		}
-		_wremove(subxmlpath.c_str());
-	}
-
-	return vecdlIDs;
+	return scraps.operator std::vector<FASubmission, std::allocator<FASubmission>>();
 }
 
-
-size_t write_data(void *ptr, size_t size, size_t nmemb, FILE *stream)
+static size_t write_data(void *ptr, size_t size, size_t nmemb, FILE *stream)
 {
 	size_t written = fwrite(ptr, size, nmemb, stream);
 	return written;
@@ -356,41 +268,80 @@ size_t write_data(void *ptr, size_t size, size_t nmemb, FILE *stream)
 
 int CFADumper::CurlDownload(const std::string & url, const std::wstring & dir)
 {
-	FILE* fp;
-	CURLcode res;
+	FILE* fp = _wfopen(dir.c_str(), L"wb");
 
-	fp = _wfopen(dir.c_str(), L"wb");
+	CURL* pCurl = curl_easy_init();
 
-	curl_easy_setopt(m_pCurl, CURLOPT_URL, url.c_str());
-	curl_easy_setopt(m_pCurl, CURLOPT_WRITEFUNCTION, write_data);
-	curl_easy_setopt(m_pCurl, CURLOPT_NOPROGRESS, TRUE);
-	curl_easy_setopt(m_pCurl, CURLOPT_WRITEDATA, fp);
+	curl_easy_setopt(pCurl, CURLOPT_URL, url.c_str());
+	curl_easy_setopt(pCurl, CURLOPT_WRITEFUNCTION, write_data);
+	curl_easy_setopt(pCurl, CURLOPT_NOPROGRESS, TRUE);
+	curl_easy_setopt(pCurl, CURLOPT_WRITEDATA, fp);
 
-	res = curl_easy_perform(m_pCurl);
+	CURLcode res = curl_easy_perform(pCurl);
 	if (res != CURLE_OK) {
 		xlog::Error("Download failed! error %d\n", res);
 	}
 
 	std::fclose(fp);
 
+	curl_easy_cleanup(pCurl);
+
 	return res;
 }
 
-std::wstring CFADumper::OpenSaveDialog()
+int CFADumper::DownloadInternal(std::vector<FASubmission> gallery)
 {
-	TCHAR szDir[MAX_PATH];
-	BROWSEINFO bInfo;
-	bInfo.hwndOwner = GetActiveWindow();
-	bInfo.pidlRoot = NULL;
-	bInfo.pszDisplayName = szDir; // Address of a buffer to receive the display name of the folder selected by the user
-	bInfo.lpszTitle = L"Pwease sewect a fowdew UwU"; // Title of the dialog
-	bInfo.ulFlags = 0;
-	bInfo.lpfn = NULL;
-	bInfo.lParam = 0;
-	bInfo.iImage = -1;
+	m_status.operator=("Downloading...");
 
-	LPITEMIDLIST lpItem = SHBrowseForFolder(&bInfo);
+	m_totalImages.operator=(gallery.size());
+	m_currentIdx.operator=(1);
+	m_isDownloading.operator=(true);
 
-	SHGetPathFromIDList(lpItem, szDir);
-	return szDir;
+	ctpl::thread_pool threads(4);
+
+	for (auto submission : gallery)
+	{
+		threads.push(ThreadedImageDownload, submission, this);
+	}
+
+	while (threads.n_idle() != threads.size()) {
+		std::this_thread::sleep_for(std::chrono::milliseconds(50));
+	}
+
+	threads.stop();
+
+	m_isDownloading.operator=(false);
+
+	m_status.operator=("Idle");
+
+	return 0;
+}
+
+int CFADumper::ThreadedImageDownload(int id, FASubmission submission, CFADumper* self)
+{
+	auto link = submission.GetDownloadLink();
+	auto filename = link.substr(link.find_last_of("/") + 1);
+
+	std::wstring savedir = self->m_saveDirectory + std::wstring(L"\\") +
+		libdaemon::Utils::AnsiToWstring(filename);
+
+	int code = self->CurlDownload(submission.GetDownloadLink(), savedir);
+	auto curridx = self->m_currentIdx.operator size_t();
+	return self->m_currentIdx.operator=(++curridx), code;
+}
+
+int CFADumper::ThreadedSubmissionDownload(int threadid, int id, LockAssignable<std::vector<FASubmission>>* gallery, CFADumper * self)
+{
+	FASubmission submission(id, self);
+	//gallery->operator->()->push_back(submission);
+
+	auto gal = gallery->operator->();
+	gallery->lock();
+	gal->push_back(submission);
+	gallery->unlock();
+
+	auto curridx = self->m_currentIdx.operator size_t();
+	self->m_currentIdx.operator=(++curridx);
+
+	return 0;
 }

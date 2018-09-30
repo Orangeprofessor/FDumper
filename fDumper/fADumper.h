@@ -3,24 +3,27 @@
 #include "CBaseDumper.h"
 #include "curl/curl.h"
 
+#include "rapidjson/istreamwrapper.h"
+#include "rapidjson/document.h"
+
 #include <mutex>
 
-enum faContentFlags
+enum faRatingFlags : int
 {
-	ALL = 0,
+	ALL_RATINGS = 0,
 	SFW_ONLY,
 	NSFW_ONLY
 };
 
-enum faScrapFlags
+enum faGalleryFlags : int
 {
-	SALL = 0,
+	ALL_GALLERIES = 0,
+	NO_SCRAPS,
 	SCRAPS_ONLY,
-	NOSCRAPS
 };
 
 template<typename T>
-class LockAssignable 
+class LockAssignable
 {
 public:
 	LockAssignable& operator=(const T& t) {
@@ -32,41 +35,108 @@ public:
 		std::lock_guard<std::mutex> lk(m_mutex);
 		return m_protected;
 	}
+	T* operator->() {
+		std::lock_guard<std::mutex> lk(m_mutex);
+		return &m_protected;
+	}
+	inline void lock() {
+		m_mutex.lock();
+	}
+	inline void unlock() {
+		m_mutex.unlock();
+	}
+
 private:
 	mutable std::mutex m_mutex;
 	T m_protected{};
 };
 
+struct FASubmission;
+
 class CFADumper : public CBaseDumper
 {
 public:
-	using faPathUrl = std::pair<std::wstring, std::string>;
-public:
-	CFADumper(const std::string& apiurl);
+	CFADumper(const std::string apiurl, std::string uname, std::wstring savedir, int rating, int gallery, bool scrapfolder);
 	~CFADumper();
 
 	virtual int Download()override;
-	virtual int QueryAPI()override;
-
-	std::vector<faPathUrl> Search(std::string tags);
 
 	int CurlDownload(const std::string& url, const std::wstring& dir);
 
 	LockAssignable<std::string> m_imagename;
 	LockAssignable<size_t> m_currentIdx;
 	LockAssignable<size_t> m_totalImages;
-	LockAssignable<bool> m_finishedDl;
-private:
-	std::vector<faPathUrl> GetMainGallery();
-	std::vector<faPathUrl> GetScrapGallery();
-
-	std::wstring OpenSaveDialog();
+	LockAssignable<bool> m_isDownloading;
+	LockAssignable<std::string> m_status;
 
 private:
-	const std::string& m_apiurl;
+	std::vector<FASubmission> GetMainGallery(bool sfw);
+	std::vector<FASubmission> GetScrapGallery(bool sfw);
 
+	int DownloadInternal(std::vector<FASubmission> gallery);
+	static int ThreadedImageDownload(int id, FASubmission submission, CFADumper* self);
+	static int ThreadedSubmissionDownload(int threadid, int id, LockAssignable<std::vector<FASubmission>>* gallery, CFADumper* self);
+public:
+	const std::string m_apiurl;
 	std::string m_uHandle;
 	std::wstring m_saveDirectory;
+	faRatingFlags m_rating;
+	faGalleryFlags m_gallery;
+	bool m_scrapfolder;
+};
 
-	CURL* m_pCurl;
+struct FASubmission
+{
+	FASubmission(int submission, CFADumper* dumper) : submissionID(submission), dumper(dumper)
+	{
+		Setup();
+	}
+
+	void Setup()
+	{
+		char urlbuff[200] = {};
+
+		std::sprintf(urlbuff, "%s/submission/%d.json", dumper->m_apiurl.c_str(), submissionID);
+
+		wchar_t tempbuff[MAX_PATH] = {};
+		GetTempPath(MAX_PATH, tempbuff);
+
+		std::wstring dlpath = tempbuff + std::wstring(L"\\") + std::to_wstring(submissionID) + std::wstring(L".json");
+
+		if (dumper->CurlDownload(urlbuff, dlpath)) {
+			// uhhh
+			throw std::exception("wtf");
+		}
+
+		std::ifstream ifs(dlpath);
+		rapidjson::IStreamWrapper isw(ifs);
+
+		rapidjson::Document doc;
+		doc.ParseStream(isw);
+
+		ifs.close();
+
+		auto fullimage = doc.FindMember("download");
+		downloadURL = fullimage->value.GetString();
+
+		auto imagetitle = doc.FindMember("title");
+		title = imagetitle->value.GetString();
+
+		auto imagerating = doc.FindMember("rating");
+		imagerating->value.GetString() == std::string("General") ? rating = 1 : rating = 2;
+
+		_wremove(dlpath.c_str());
+	}
+
+	inline std::string GetDownloadLink() { return downloadURL; }
+	inline int GetSubmissionID() { return submissionID; }
+	inline std::string GetSubmissionTitle() { return title; }
+	inline int GetRating() { return rating; }
+
+private:
+	CFADumper* dumper;
+	std::string downloadURL;
+	std::string title;
+	int rating;
+	int submissionID;
 };

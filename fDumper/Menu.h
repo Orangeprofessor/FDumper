@@ -5,6 +5,7 @@
 #include <string>
 #include <map>
 #include <d3d9.h>
+#include "ctpl_stl.hpp"
 
 #include "imgui/imgui.h"
 #include "imgui/imgui_impl_dx9.h"
@@ -72,8 +73,8 @@ protected:
 class CImDialogBase : public CImWindowBase
 {
 public:
-	typedef INT_PTR(CImDialogBase::*fnDlgProc)(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam);
-	typedef std::map<UINT, fnDlgProc> mapMsgProc;
+	typedef INT_PTR(CImDialogBase::*fnWndProc)(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam);
+	typedef std::map<UINT, fnWndProc> mapMsgProc;
 
 	virtual void ImDraw() = 0;
 
@@ -81,7 +82,7 @@ public:
 	{
 		m_messages[WM_CREATE] = &CImDialogBase::OnInit;
 		m_messages[WM_SIZE] = &CImDialogBase::OnSize;
-		m_messages[WM_DESTROY] = &CImDialogBase::OnDestroy;
+		m_messages[WM_CLOSE] = &CImDialogBase::OnClose;
 	}
 
 	virtual INT_PTR Run()
@@ -94,8 +95,9 @@ public:
 			GetModuleHandle(NULL), NULL, NULL, NULL, NULL, L"fdumper", NULL };
 		RegisterClassEx(&wc);
 
-		m_hwnd = CreateWindow(L"fdumper", L"FDumper v0.2", WS_OVERLAPPEDWINDOW,
-			100, 100, 560, 430, NULL, NULL, wc.hInstance, NULL);
+		m_hwnd = CreateWindow(L"fdumper", L"FDumper v0.2", WS_OVERLAPPED | WS_CAPTION | 
+			WS_SYSMENU | WS_MINIMIZEBOX | WS_MAXIMIZEBOX,
+			100, 100, 360, 445, NULL, NULL, wc.hInstance, NULL);
 
 		if ((m_pD3D = Direct3DCreate9(D3D_SDK_VERSION)) == NULL)
 		{
@@ -242,7 +244,7 @@ protected:
 		return FALSE;
 	}
 
-	virtual LRESULT OnDestroy(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
+	virtual LRESULT OnClose(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 	{
 		PostQuitMessage(0);
 		return FALSE;
@@ -263,9 +265,22 @@ public:
 	~CImMenu();
 
 	virtual void ImDraw()override;
-private:
-	int site;
-	int dlType;
+	char apiurl[200];
+	char searchbuff[128];
+
+	std::wstring OpenSaveDialog();
+
+	class CFADumper* pDumper = nullptr;
+
+	std::string status;
+private:	
+	size_t currentimage = 1;
+	size_t totalimages = 1;
+	bool usernamefolder;
+	bool scrapsfolder;
+	ctpl::thread_pool m_notReallyAPoolBecauseItsOnlyOneThread;
+	std::vector<std::string> images;
+	int rating, sorttype;
 };
 
 

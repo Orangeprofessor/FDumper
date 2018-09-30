@@ -1,8 +1,5 @@
 #pragma once
 
-#include "rapidxml/rapidxml_wrap.hpp"
-
-
 class ConfigMgr
 {
 public:
