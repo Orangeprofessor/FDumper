@@ -7,6 +7,7 @@
 #include "rapidjson/document.h"
 
 #include <mutex>
+#include <atomic>
 
 enum faRatingFlags : int
 {
@@ -64,8 +65,8 @@ public:
 	int CurlDownload(const std::string& url, const std::wstring& dir);
 
 	LockAssignable<std::string> m_imagename;
-	LockAssignable<size_t> m_currentIdx;
-	LockAssignable<size_t> m_totalImages;
+	std::atomic<size_t> m_currentIdx;
+	std::atomic<size_t> m_totalImages;
 	LockAssignable<bool> m_isDownloading;
 	LockAssignable<std::string> m_status;
 

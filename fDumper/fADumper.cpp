@@ -130,6 +130,7 @@ int CFADumper::Download()
 std::vector<FASubmission> CFADumper::GetMainGallery(bool sfw)
 {
 	LockAssignable<std::vector<FASubmission>> gallery;
+	std::vector<int> tempIDs;
 
 	wchar_t tempbuff[MAX_PATH] = {};
 	GetTempPath(MAX_PATH, tempbuff);
@@ -165,37 +166,42 @@ std::vector<FASubmission> CFADumper::GetMainGallery(bool sfw)
 
 		ifs.close();
 
-		auto total = m_totalImages.operator size_t();
-		m_totalImages.operator=(total + doc.Size());
-
-		ctpl::thread_pool threads(4);
-
 		for (auto itr = doc.Begin(); itr != doc.End(); ++itr)
 		{
 			std::string jsonElm = itr->GetString();
 			int subID = std::stoi(jsonElm);
 
-			threads.push(ThreadedSubmissionDownload, subID, &gallery, this);
+			tempIDs.push_back(subID);
 		}
-
-		while (threads.n_idle() != threads.size())
-			std::this_thread::sleep_for(std::chrono::milliseconds(50));
-
-		threads.stop();
 
 		++curpage;
 		if (doc.Size() < 72)
 			break;
 	}
 
+	m_totalImages.operator=(tempIDs.size());
+
+	ctpl::thread_pool threads(4);
+
+	for (auto IDs : tempIDs) {
+
+		threads.push(ThreadedSubmissionDownload, IDs, &gallery, this);
+	}
+
+	while (threads.n_idle() != threads.size())
+		std::this_thread::sleep_for(std::chrono::milliseconds(50));
+
+	threads.stop();
+
 	m_isDownloading.operator=(false);
 
-	return gallery.operator std::vector<FASubmission, std::allocator<FASubmission>>();
+	return gallery;
 }
 
 std::vector<FASubmission> CFADumper::GetScrapGallery(bool sfw)
 {
 	LockAssignable<std::vector<FASubmission>> scraps;
+	std::vector<int> tempIDs;
 
 	wchar_t tempbuff[MAX_PATH] = {};
 	GetTempPath(MAX_PATH, tempbuff);
@@ -232,38 +238,40 @@ std::vector<FASubmission> CFADumper::GetScrapGallery(bool sfw)
 
 		ifs.close();
 
-		auto total = m_totalImages.operator size_t();
-		m_totalImages.operator=(total + doc.Size());
-
-		ctpl::thread_pool threads(4);
-
 		for (auto itr = doc.Begin(); itr != doc.End(); ++itr)
 		{
 			std::string jsonElm = itr->GetString();
 			int subID = std::stoi(jsonElm);
 
-			threads.push(ThreadedSubmissionDownload, subID, &scraps, this);
+			tempIDs.push_back(subID);
 		}
-
-		while (threads.n_idle() != threads.size())
-			std::this_thread::sleep_for(std::chrono::milliseconds(50));
-
-		threads.stop();
 
 		++curpage;
 		if (doc.Size() < 72)
 			break;
 	}
 
+	m_totalImages.operator=(tempIDs.size());
+
+	ctpl::thread_pool threads(4);
+
+	for (auto IDs : tempIDs) {
+		threads.push(ThreadedSubmissionDownload, IDs, &scraps, this);
+	}
+
+	while (threads.n_idle() != threads.size())
+		std::this_thread::sleep_for(std::chrono::milliseconds(50));
+
+	threads.stop();
+
 	m_isDownloading.operator=(false);
 
-	return scraps.operator std::vector<FASubmission, std::allocator<FASubmission>>();
+	return scraps;
 }
 
-static size_t write_data(void *ptr, size_t size, size_t nmemb, FILE *stream)
+__forceinline size_t write_data(void *ptr, size_t size, size_t nmemb, FILE *stream)
 {
-	size_t written = fwrite(ptr, size, nmemb, stream);
-	return written;
+	return fwrite(ptr, size, nmemb, stream);
 };
 
 int CFADumper::CurlDownload(const std::string & url, const std::wstring & dir)
@@ -325,9 +333,8 @@ int CFADumper::ThreadedImageDownload(int id, FASubmission submission, CFADumper*
 	std::wstring savedir = self->m_saveDirectory + std::wstring(L"\\") +
 		libdaemon::Utils::AnsiToWstring(filename);
 
-	int code = self->CurlDownload(submission.GetDownloadLink(), savedir);
-	auto curridx = self->m_currentIdx.operator size_t();
-	return self->m_currentIdx.operator=(++curridx), code;
+	int code = self->CurlDownload(link, savedir);
+	return self->m_currentIdx.operator++(), code;
 }
 
 int CFADumper::ThreadedSubmissionDownload(int threadid, int id, LockAssignable<std::vector<FASubmission>>* gallery, CFADumper * self)
