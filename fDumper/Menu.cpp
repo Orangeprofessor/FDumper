@@ -2,13 +2,12 @@
 #include "pch.h"
 
 #include "Menu.h"
+#include <regex>
 
 #include "fADumper.h"
 
 #include <libda3m0n/Misc/Utils.h>
 #include <ShlObj.h>
-
-
 
 CMainDialog::CMainDialog() : Dialog(IDD_MAIN)
 {
@@ -16,8 +15,7 @@ CMainDialog::CMainDialog() : Dialog(IDD_MAIN)
 
 	_events[IDC_START_DL] = static_cast<Dialog::fnDlgProc>(&CMainDialog::OnDLStart);
 	_events[IDC_CANCEL_DL] = static_cast<Dialog::fnDlgProc>(&CMainDialog::OnDLStop);
-	_events[ID_SETTINGS_CREATEDOWNLOADFOLDER] = static_cast<Dialog::fnDlgProc>(&CMainDialog::OnCreateUsername);
-	_events[ID_SETTINGS_CREATESUBGALLERYFOLDERS] = static_cast<Dialog::fnDlgProc>(&CMainDialog::OnCreateGallery);
+	_events[ID_SETTINGS_CHANGEAPIADDRESS] = static_cast<Dialog::fnDlgProc>(&CMainDialog::OnChangeAPI);
 }
 
 CMainDialog::~CMainDialog()
@@ -30,7 +28,6 @@ INT_PTR CMainDialog::OnInit(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPara
 {
 	Dialog::OnInit(hDlg, message, wParam, lParam);
 
-	m_apiurl.Attach(m_hwnd, IDC_API);
 	m_images.Attach(m_hwnd, IDC_IMAGE_LIST);
 	m_ratings.Attach(m_hwnd, IDC_RATINGS);
 	m_galleries.Attach(m_hwnd, IDC_GALLERIES);
@@ -55,6 +52,13 @@ INT_PTR CMainDialog::OnInit(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPara
 	m_ratings.selection(0);
 	m_galleries.selection(0);
 
+	m_status.Attach(CreateWindow(STATUSCLASSNAME, L"", WS_CHILD | WS_VISIBLE,
+		0, 0, 0, 10, hDlg, NULL, GetModuleHandle(NULL), NULL));
+
+	m_status.SetParts({ 120, -1 });
+	m_status.SetText(0, L"Default Profile");
+	m_status.SetText(1, L"Idle");
+
 	return TRUE;
 }
 
@@ -66,7 +70,7 @@ INT_PTR CMainDialog::OnDLStart(HWND hDlg, UINT message, WPARAM wParam, LPARAM lP
 		return FALSE;
 
 	auto username = m_username.text();
-	auto apiurl = m_apiurl.text();
+	auto apiurl = L"";// m_apiurl.text();
 
 	auto ratings = m_ratings.selection();
 	auto galleries = m_ratings.selection();
@@ -108,23 +112,10 @@ INT_PTR CMainDialog::OnDLResume(HWND hDlg, UINT message, WPARAM wParam, LPARAM l
 	return TRUE;
 }
 
-INT_PTR	CMainDialog::OnCreateUsername(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
+INT_PTR CMainDialog::OnChangeAPI(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 {
-	//auto menu = GetMenu(hDlg);
-
-	//MENUITEMINFO menudata; ZeroMemory(&menudata, sizeof(menudata));
-	//menudata.cbSize = sizeof(menudata);
-
-	//GetMenuItemInfo(menu, 0, TRUE, &menudata);
-
-	//menudata.chec
-
-	return TRUE;
-}
-
-INT_PTR CMainDialog::OnCreateGallery(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
-{
-	return TRUE;
+	CAPIMenu menu(api);
+	return menu.RunModal(m_hwnd);
 }
 
 std::wstring CMainDialog::OpenSaveDialog()
@@ -146,3 +137,75 @@ std::wstring CMainDialog::OpenSaveDialog()
 	return szDir;
 }
 
+CAPIMenu::CAPIMenu(std::string& api) : Dialog(IDD_APIMENU), m_ret(api)
+{
+	_messages[WM_INITDIALOG] = static_cast<Dialog::fnDlgProc>(&CAPIMenu::OnInit);
+
+	_events[IDC_API_OK] = static_cast<Dialog::fnDlgProc>(&CAPIMenu::OnOk);
+	_events[IDC_API_CANCEL] = static_cast<Dialog::fnDlgProc>(&CAPIMenu::OnCancel);
+}
+
+INT_PTR CAPIMenu::OnInit(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
+{
+	Dialog::OnInit(hDlg, message, wParam, lParam);
+
+	SetWindowText(m_hwnd, L"Enter API Address...");
+
+	m_api.Attach(m_hwnd, IDC_APIURL);
+
+	m_api.text(libdaemon::Utils::AnsiToWstring(m_ret));
+
+	return TRUE;
+}
+
+INT_PTR CAPIMenu::OnOk(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
+{
+	auto input = m_api.text();
+
+	// regex pattern
+	std::string pattern = R"(^(([^:\/?#]+):)?(//([^\/?#]*))?([^?#]*)(\?([^#]*))?(#(.*))?)";
+	std::regex url_regex(pattern, std::regex::extended);
+
+	bool validurl = std::regex_match(libdaemon::Utils::WstringToAnsi(input), url_regex);
+
+	if (validurl)
+	{
+		CURL* pCurl = curl_easy_init();
+
+		curl_easy_setopt(pCurl, CURLOPT_URL, input.c_str());
+		curl_easy_setopt(pCurl, CURLOPT_NOBODY, 1);
+
+		auto res = curl_easy_perform(pCurl);
+
+		std::string err = curl_easy_strerror(res);
+
+		curl_easy_cleanup(pCurl);
+
+		if (res != CURLE_OK)
+		{
+			std::wstring msg = L"Connection error! " + libdaemon::Utils::AnsiToWstring(err) + L", continue anyway?";
+			if (Message::ShowQuestion(m_hwnd, msg, L"Connyection Wawnying UwU")) {
+				//set
+				m_ret.assign(libdaemon::Utils::WstringToAnsi(m_api.text()));
+				return Dialog::OnClose(hDlg, message, wParam, lParam);
+			}
+		}
+		else
+		{
+			//set
+			m_ret.assign(libdaemon::Utils::WstringToAnsi(m_api.text()));
+			return Dialog::OnClose(hDlg, message, wParam, lParam);
+		}
+	}
+	else
+	{
+		Message::ShowError(m_hwnd, L"Specified URL is invalid!");
+	}
+
+	return TRUE;
+}
+
+INT_PTR CAPIMenu::OnCancel(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
+{
+	return Dialog::OnClose(hDlg, message, wParam, lParam);
+}

@@ -9,9 +9,12 @@
 #include "control/ListView.hpp"
 #include "control/ComboBox.hpp"
 #include "control/Button.hpp"
+#include "control/StatusBar.hpp"
+#include "control/Message.hpp"
 
 #include "ctpl_stl.hpp"
 
+class CAPIMenu;
 
 class CMainDialog : public Dialog
 {
@@ -24,14 +27,12 @@ public:
 	MSG_HANDLER(OnDLStop);
 	MSG_HANDLER(OnDLPause);
 	MSG_HANDLER(OnDLResume);
-	MSG_HANDLER(OnCreateUsername);
-	MSG_HANDLER(OnCreateGallery);
+	MSG_HANDLER(OnChangeAPI);
 
 private:
 	std::wstring OpenSaveDialog();
 
 private:
-	ctrl::EditBox m_apiurl;
 	ctrl::ListView m_images;
 	ctrl::ComboBox m_ratings;
 	ctrl::ComboBox m_galleries;
@@ -39,10 +40,28 @@ private:
 	ctrl::Button m_update;
 	ctrl::Button m_startDL;
 	ctrl::Button m_stopDL;
+	ctrl::StatusBar m_status;
 
 	ctpl::thread_pool m_notapool;
 	std::thread m_dumperThread;
 
+	std::string api = "faexport.boothale.net"; 
+
 	bool createusername, creategallery;
 	class CFADumper* pDumper = nullptr;
+};
+
+
+class CAPIMenu : public Dialog
+{
+public:
+	CAPIMenu(std::string& api);
+
+	MSG_HANDLER(OnInit);
+	MSG_HANDLER(OnOk);
+	MSG_HANDLER(OnCancel);
+
+private:
+	ctrl::EditBox m_api;
+	std::string& m_ret;
 };

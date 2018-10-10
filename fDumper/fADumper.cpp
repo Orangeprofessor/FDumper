@@ -1,6 +1,7 @@
 #include "pch.h"
 
 #include "fADumper.h"
+#include "control/Message.hpp"
 #include "Log.h"
 #include "ctpl_stl.hpp"
 
@@ -9,7 +10,7 @@
 
 
 CFADumper::CFADumper(const std::string apiurl, std::string uname, std::wstring savedir, int rating, int gallery, bool scrapfolder) : m_apiurl(apiurl), m_uHandle(uname),
-m_saveDirectory(savedir), m_rating((faRatingFlags)rating), m_gallery((faGalleryFlags)gallery), m_scrapfolder(scrapfolder)
+m_saveDirectory(savedir), m_rating((faRatingFlags)rating), m_gallery((faGalleryFlags)gallery)
 {
 
 }
@@ -21,15 +22,12 @@ CFADumper::~CFADumper()
 
 int CFADumper::Download()
 {
-	m_status.operator=("Downloading submission data...");
+	m_status = "Downloading submission data...";
 
 	if (m_gallery == faGalleryFlags::SCRAPS_ONLY)
 	{
-		if (m_scrapfolder)
-		{
-			m_saveDirectory += L"\\" + std::wstring(L"Scraps");
-			CreateDirectory(m_saveDirectory.c_str(), NULL);
-		}
+		m_saveDirectory += L"\\" + std::wstring(L"Scraps");
+		CreateDirectory(m_saveDirectory.c_str(), NULL);
 
 		if (m_rating == faRatingFlags::NSFW_ONLY)
 		{
@@ -82,11 +80,8 @@ int CFADumper::Download()
 				return sub.GetRating() == 1;
 			}), fullscrapgallery.end());
 
-			if (m_scrapfolder)
-			{
-				m_saveDirectory += L"\\" + std::wstring(L"Scraps");
-				CreateDirectory(m_saveDirectory.c_str(), NULL);
-			}
+			m_saveDirectory += L"\\" + std::wstring(L"Scraps");
+			CreateDirectory(m_saveDirectory.c_str(), NULL);
 
 			DownloadInternal(fullscrapgallery);
 		}
@@ -99,11 +94,10 @@ int CFADumper::Download()
 
 		if (m_gallery != faGalleryFlags::NO_SCRAPS) {
 			auto scrapgallery = GetScrapGallery(true);
-			if (m_scrapfolder)
-			{
-				m_saveDirectory += L"\\" + std::wstring(L"Scraps");
-				CreateDirectory(m_saveDirectory.c_str(), NULL);
-			}
+
+			m_saveDirectory += L"\\" + std::wstring(L"Scraps");
+			CreateDirectory(m_saveDirectory.c_str(), NULL);
+
 			DownloadInternal(scrapgallery);
 		}
 	}
@@ -115,11 +109,10 @@ int CFADumper::Download()
 
 		if (m_gallery != faGalleryFlags::NO_SCRAPS) {
 			auto scrapgallery = GetScrapGallery(false);
-			if (m_scrapfolder)
-			{
-				m_saveDirectory += L"\\" + std::wstring(L"Scraps");
-				CreateDirectory(m_saveDirectory.c_str(), NULL);
-			}
+
+			m_saveDirectory += L"\\" + std::wstring(L"Scraps");
+			CreateDirectory(m_saveDirectory.c_str(), NULL);
+
 			DownloadInternal(scrapgallery);
 		}
 	}
@@ -135,27 +128,31 @@ std::vector<FASubmission> CFADumper::GetMainGallery(bool sfw)
 	wchar_t tempbuff[MAX_PATH] = {};
 	GetTempPath(MAX_PATH, tempbuff);
 
-	m_currentIdx.operator=(0);
-	m_totalImages.operator=(0);
-	m_isDownloading.operator=(true);
+	m_currentIdx = 0;
+	m_totalImages = 0;
+	m_isDownloading = true;
 
 	int curpage = 1;
 	while (true)
 	{
 		char urlbuff[200] = {};
 		if (sfw) {
-			std::sprintf(urlbuff, "%s/user/%s/gallery.json?sfw=1&page=%d", m_apiurl.c_str(), m_uHandle.c_str(), curpage);
+			sprintf_s(urlbuff, "%s/user/%s/gallery.json?sfw=1&page=%d", m_apiurl.c_str(), m_uHandle.c_str(), curpage);
 		}
 		else {
-			std::sprintf(urlbuff, "%s/user/%s/gallery.json?page=%d", m_apiurl.c_str(), m_uHandle.c_str(), curpage);
+			sprintf_s(urlbuff, "%s/user/%s/gallery.json?page=%d", m_apiurl.c_str(), m_uHandle.c_str(), curpage);
 		}
 
 		std::wstring submissions;
 		submissions.assign(tempbuff);
 		submissions += L"\\" + libdaemon::Utils::AnsiToWstring(m_uHandle) + std::to_wstring(curpage) + std::wstring(L".json");
 
-		if (CurlDownload(urlbuff, submissions)) {
+		if (int err = CurlDownload(urlbuff, submissions))
+		{
+			wchar_t buf[128];
+			std::swprintf(buf, sizeof(buf), L"Couldn't download page %d!, curl error %d", curpage, err);
 
+			Message::ShowError(GetActiveWindow(), buf);
 		}
 
 		std::ifstream ifs(submissions);
@@ -179,7 +176,7 @@ std::vector<FASubmission> CFADumper::GetMainGallery(bool sfw)
 			break;
 	}
 
-	m_totalImages.operator=(tempIDs.size());
+	m_totalImages = tempIDs.size();
 
 	ctpl::thread_pool threads(4);
 
@@ -189,11 +186,11 @@ std::vector<FASubmission> CFADumper::GetMainGallery(bool sfw)
 	}
 
 	while (threads.n_idle() != threads.size())
-		std::this_thread::sleep_for(std::chrono::milliseconds(50));
+		std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
 	threads.stop();
 
-	m_isDownloading.operator=(false);
+	m_isDownloading = false;
 
 	return gallery;
 }
@@ -206,9 +203,9 @@ std::vector<FASubmission> CFADumper::GetScrapGallery(bool sfw)
 	wchar_t tempbuff[MAX_PATH] = {};
 	GetTempPath(MAX_PATH, tempbuff);
 
-	m_currentIdx.operator=(0);
-	m_totalImages.operator=(0);
-	m_isDownloading.operator=(true);
+	m_currentIdx = 0;
+	m_totalImages = 0;
+	m_isDownloading = true;
 
 	int curpage = 1;
 	while (true)
@@ -216,18 +213,22 @@ std::vector<FASubmission> CFADumper::GetScrapGallery(bool sfw)
 		char urlbuff[200] = {};
 
 		if (sfw) {
-			std::sprintf(urlbuff, "%s/user/%s/scraps.json?sfw=1&page=%d", m_apiurl.c_str(), m_uHandle.c_str(), curpage);
+			sprintf_s(urlbuff, "%s/user/%s/scraps.json?sfw=1&page=%d", m_apiurl.c_str(), m_uHandle.c_str(), curpage);
 		}
 		else {
-			std::sprintf(urlbuff, "%s/user/%s/scraps.json?page=%d", m_apiurl.c_str(), m_uHandle.c_str(), curpage);
+			sprintf_s(urlbuff, "%s/user/%s/scraps.json?page=%d", m_apiurl.c_str(), m_uHandle.c_str(), curpage);
 		}
 
 		std::wstring submissions;
 		submissions.assign(tempbuff);
 		submissions += L"\\" + libdaemon::Utils::AnsiToWstring(m_uHandle) + std::to_wstring(curpage) + std::wstring(L".json");
 
-		if (CurlDownload(urlbuff, submissions)) {
+		if (int err = CurlDownload(urlbuff, submissions))
+		{
+			wchar_t buf[128];
+			std::swprintf(buf, sizeof(buf), L"Couldn't download page %d!, curl error %d", curpage, err);
 
+			Message::ShowError(GetActiveWindow(), buf);
 		}
 
 		std::ifstream ifs(submissions);
@@ -251,7 +252,7 @@ std::vector<FASubmission> CFADumper::GetScrapGallery(bool sfw)
 			break;
 	}
 
-	m_totalImages.operator=(tempIDs.size());
+	m_totalImages = tempIDs.size();
 
 	ctpl::thread_pool threads(4);
 
@@ -264,7 +265,7 @@ std::vector<FASubmission> CFADumper::GetScrapGallery(bool sfw)
 
 	threads.stop();
 
-	m_isDownloading.operator=(false);
+	m_isDownloading = false;
 
 	return scraps;
 }
@@ -276,7 +277,8 @@ __forceinline size_t write_data(void *ptr, size_t size, size_t nmemb, FILE *stre
 
 int CFADumper::CurlDownload(const std::string & url, const std::wstring & dir)
 {
-	FILE* fp = _wfopen(dir.c_str(), L"wb");
+	FILE* fp = nullptr;
+	_wfopen_s(&fp, dir.c_str(), L"wb");
 
 	CURL* pCurl = curl_easy_init();
 
@@ -287,7 +289,7 @@ int CFADumper::CurlDownload(const std::string & url, const std::wstring & dir)
 
 	CURLcode res = curl_easy_perform(pCurl);
 	if (res != CURLE_OK) {
-		xlog::Error("Download failed! error %d\n", res);
+		xlog::Error("Download failed! error %s\n", curl_easy_strerror(res));
 	}
 
 	std::fclose(fp);
@@ -299,11 +301,11 @@ int CFADumper::CurlDownload(const std::string & url, const std::wstring & dir)
 
 int CFADumper::DownloadInternal(std::vector<FASubmission> gallery)
 {
-	m_status.operator=("Downloading...");
+	m_status = "Downloading...";
 
-	m_totalImages.operator=(gallery.size());
-	m_currentIdx.operator=(1);
-	m_isDownloading.operator=(true);
+	m_totalImages = gallery.size();
+	m_currentIdx = 1;
+	m_isDownloading = true;
 
 	ctpl::thread_pool threads(4);
 
@@ -318,9 +320,9 @@ int CFADumper::DownloadInternal(std::vector<FASubmission> gallery)
 
 	threads.stop();
 
-	m_isDownloading.operator=(false);
+	m_isDownloading = false;
 
-	m_status.operator=("Idle");
+	m_status = "Idle";
 
 	return 0;
 }
@@ -334,7 +336,7 @@ int CFADumper::ThreadedImageDownload(int id, FASubmission submission, CFADumper*
 		libdaemon::Utils::AnsiToWstring(filename);
 
 	int code = self->CurlDownload(link, savedir);
-	return self->m_currentIdx.operator++(), code;
+	return self->m_currentIdx++, code;
 }
 
 int CFADumper::ThreadedSubmissionDownload(int threadid, int id, LockAssignable<std::vector<FASubmission>>* gallery, CFADumper * self)

@@ -83,7 +83,6 @@ public:
 	std::wstring m_saveDirectory;
 	faRatingFlags m_rating;
 	faGalleryFlags m_gallery;
-	bool m_scrapfolder;
 };
 
 struct FASubmission
@@ -97,7 +96,7 @@ struct FASubmission
 	{
 		char urlbuff[200] = {};
 
-		std::sprintf(urlbuff, "%s/submission/%d.json", dumper->m_apiurl.c_str(), submissionID);
+		sprintf_s(urlbuff, "%s/submission/%d.json", dumper->m_apiurl.c_str(), submissionID);
 
 		wchar_t tempbuff[MAX_PATH] = {};
 		GetTempPath(MAX_PATH, tempbuff);

@@ -4,6 +4,7 @@
 //
 #define IDD_MAIN                        101
 #define IDR_MENU1                       103
+#define IDD_APIMENU                     108
 #define IDC_CANCEL_DL                   1016
 #define IDC_START_DL                    1017
 #define IDC_PAUSE_DL                    1018
@@ -14,19 +15,21 @@
 #define IDC_RATINGS                     1026
 #define IDC_GALLERIES                   1027
 #define IDC_IMAGE_LIST                  1028
-#define IDC_EDIT1                       1029
-#define IDC_API                         1029
+#define IDC_APIURL                      1035
+#define IDC_API_OK                      1036
+#define IDC_API_CANCEL                  1037
 #define ID_SETTINGS                     40001
 #define ID_SETTINGS_CREATEDOWNLOADFOLDER 40002
 #define ID_SETTINGS_CREATESUBGALLERYFOLDERS 40003
+#define ID_SETTINGS_CHANGEAPIADDRESS    40004
 
 // Next default values for new objects
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        108
-#define _APS_NEXT_COMMAND_VALUE         40004
-#define _APS_NEXT_CONTROL_VALUE         1030
+#define _APS_NEXT_RESOURCE_VALUE        110
+#define _APS_NEXT_COMMAND_VALUE         40005
+#define _APS_NEXT_CONTROL_VALUE         1038
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif
