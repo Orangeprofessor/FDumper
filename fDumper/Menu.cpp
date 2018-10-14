@@ -15,13 +15,14 @@ CMainDialog::CMainDialog() : Dialog(IDD_MAIN)
 
 	_events[IDC_START_DL] = static_cast<Dialog::fnDlgProc>(&CMainDialog::OnDLStart);
 	_events[IDC_CANCEL_DL] = static_cast<Dialog::fnDlgProc>(&CMainDialog::OnDLStop);
+	_events[IDC_PAUSE_DL] = static_cast<Dialog::fnDlgProc>(&CMainDialog::OnDLPause);
+	_events[IDC_RESUME_DL] = static_cast<Dialog::fnDlgProc>(&CMainDialog::OnDLResume);
 	_events[ID_SETTINGS_CHANGEAPIADDRESS] = static_cast<Dialog::fnDlgProc>(&CMainDialog::OnChangeAPI);
 }
 
 CMainDialog::~CMainDialog()
 {
-	if (m_dumperThread.joinable())
-		m_dumperThread.join();
+
 }
 
 INT_PTR CMainDialog::OnInit(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
@@ -30,15 +31,20 @@ INT_PTR CMainDialog::OnInit(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPara
 
 	m_images.Attach(m_hwnd, IDC_IMAGE_LIST);
 	m_ratings.Attach(m_hwnd, IDC_RATINGS);
+	m_progress.Attach(m_hwnd, IDC_DL_PROGRESS);
 	m_galleries.Attach(m_hwnd, IDC_GALLERIES);
 	m_username.Attach(m_hwnd, IDC_USERNAME);
 	m_update.Attach(m_hwnd, IDC_UPDATE_USERNAME);
 	m_startDL.Attach(m_hwnd, IDC_START_DL);
 	m_stopDL.Attach(m_hwnd, IDC_CANCEL_DL);
+	m_pauseDL.Attach(m_hwnd, IDC_PAUSE_DL);
+	m_resumeDL.Attach(m_hwnd, IDC_RESUME_DL);
 
 	SetWindowText(m_hwnd, L"FDumper v0.2");
 
-	m_images.AddColumn(L"Name", 100, 0);
+	m_images.AddColumn(L"Name", 160, 0);
+	m_images.AddColumn(L"ID", 60, 1);
+	m_images.AddColumn(L"Rating", 60, 2);
 	ListView_SetExtendedListViewStyle(m_images.hwnd(), LVS_EX_FULLROWSELECT | LVS_EX_DOUBLEBUFFER);
 
 	m_ratings.Add("All Ratings");
@@ -59,6 +65,11 @@ INT_PTR CMainDialog::OnInit(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPara
 	m_status.SetText(0, L"Default Profile");
 	m_status.SetText(1, L"Idle");
 
+	HICON hIcon = LoadIcon(GetModuleHandle(NULL), MAKEINTRESOURCE(IDI_TAILS));
+	SendMessage(hDlg, WM_SETICON, ICON_BIG, (LPARAM)hIcon);
+	SendMessage(hDlg, WM_SETICON, ICON_SMALL, (LPARAM)hIcon);
+	DestroyIcon(hIcon);
+
 	return TRUE;
 }
 
@@ -70,7 +81,6 @@ INT_PTR CMainDialog::OnDLStart(HWND hDlg, UINT message, WPARAM wParam, LPARAM lP
 		return FALSE;
 
 	auto username = m_username.text();
-	auto apiurl = L"";// m_apiurl.text();
 
 	auto ratings = m_ratings.selection();
 	auto galleries = m_ratings.selection();
@@ -78,23 +88,22 @@ INT_PTR CMainDialog::OnDLStart(HWND hDlg, UINT message, WPARAM wParam, LPARAM lP
 	dest += std::wstring(L"\\") + username;
 	CreateDirectory(dest.c_str(), NULL);
 
-	pDumper = new CFADumper(libdaemon::Utils::WstringToAnsi(apiurl),
-		libdaemon::Utils::WstringToAnsi(username), dest, ratings, galleries, true);
+	pDumper = new CFADumper(api,
+		libdaemon::Utils::WstringToAnsi(username), dest,
+		(faRatingFlags)ratings, (faGalleryFlags)galleries, m_images, m_status, m_progress);
 
 	auto downloader = [&](int id) {
 		pDumper->Download();
-		if (pDumper)
-			delete pDumper;
 	};
 
-	m_notapool.push(downloader);
+	g_threads.push(downloader);
 
 	return TRUE;
 }
 
 INT_PTR CMainDialog::OnDLStop(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 {
-	m_notapool.stop();
+	g_threads.kill();
 
 	if (pDumper)
 		delete pDumper;
@@ -104,11 +113,31 @@ INT_PTR CMainDialog::OnDLStop(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPa
 
 INT_PTR CMainDialog::OnDLPause(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 {
+	for (int i = 0; i < g_threads.size(); i++)	
+	{
+		auto& thread = g_threads.get_thread(i);
+		HANDLE tHandle = thread.native_handle();
+
+		DWORD code = SuspendThread(tHandle);
+
+		auto err = GetLastError();
+	}
+
 	return TRUE;
 }
 
 INT_PTR CMainDialog::OnDLResume(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 {
+	for (int i = 0; i < g_threads.size(); i++)
+	{
+		auto& thread = g_threads.get_thread(i);
+		HANDLE tHandle = thread.native_handle();
+
+		DWORD code = ResumeThread(tHandle);
+
+		auto err = GetLastError();
+	}
+
 	return TRUE;
 }
 
@@ -172,7 +201,8 @@ INT_PTR CAPIMenu::OnOk(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 	{
 		CURL* pCurl = curl_easy_init();
 
-		curl_easy_setopt(pCurl, CURLOPT_URL, input.c_str());
+		curl_easy_setopt(pCurl, CURLOPT_URL, libdaemon::Utils::WstringToAnsi(input).c_str());
+		curl_easy_setopt(pCurl, CURLOPT_TIMEOUT, 10);
 		curl_easy_setopt(pCurl, CURLOPT_NOBODY, 1);
 
 		auto res = curl_easy_perform(pCurl);

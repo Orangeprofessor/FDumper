@@ -193,6 +193,31 @@ namespace ctpl {
 			this->flags.clear();
 		}
 
+		void kill() {
+
+			this->isStop = true;
+			for (int i = 0, n = this->size(); i < n; ++i) {
+				*this->flags[i] = true; // command the threads to stop
+			}
+			this->clear_queue(); // empty the queue
+
+			{
+				std::unique_lock<std::mutex> lock(this->mutex);
+				this->cv.notify_all(); // stop all waiting threads
+			}
+
+			for (int i = 0; i < static_cast<int> (this->threads.size()); ++i) { // kill all threads
+				HANDLE tHandle = this->threads[i]->native_handle();
+				TerminateThread(tHandle, 0);
+			}
+
+			// if there were no threads in the pool but some functors in the queue, the functors are not deleted by the threads
+			// therefore delete them here
+			this->clear_queue();
+			this->threads.clear();
+			this->flags.clear();
+		}
+
 		template<typename F, typename... Rest>
 		auto push(F && f, Rest&&... rest) ->std::future<decltype(f(0, rest...))> {
 			auto pck = std::make_shared < std::packaged_task<decltype(f(0, rest...))(int) >>(

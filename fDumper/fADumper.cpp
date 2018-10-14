@@ -9,8 +9,9 @@
 #include <libda3m0n/Misc/Utils.h>
 
 
-CFADumper::CFADumper(const std::string apiurl, std::string uname, std::wstring savedir, int rating, int gallery, bool scrapfolder) : m_apiurl(apiurl), m_uHandle(uname),
-m_saveDirectory(savedir), m_rating((faRatingFlags)rating), m_gallery((faGalleryFlags)gallery)
+CFADumper::CFADumper(const std::string apiurl, std::string uname, std::wstring savedir, faRatingFlags rating,
+	faGalleryFlags gallery, ctrl::ListView& imglist, ctrl::StatusBar& status, ctrl::ProgressBar& progress) : m_apiurl(apiurl), m_uHandle(uname),
+	m_saveDirectory(savedir), m_rating((faRatingFlags)rating), m_gallery((faGalleryFlags)gallery), m_listview(imglist), m_status(status), m_progress(progress)
 {
 
 }
@@ -22,7 +23,7 @@ CFADumper::~CFADumper()
 
 int CFADumper::Download()
 {
-	m_status = "Downloading submission data...";
+	m_status.SetText(1, L"Downloading submission data...");
 
 	if (m_gallery == faGalleryFlags::SCRAPS_ONLY)
 	{
@@ -34,7 +35,7 @@ int CFADumper::Download()
 			auto fullgallery = GetScrapGallery(false);
 
 			fullgallery.erase(std::remove_if(fullgallery.begin(), fullgallery.end(), [&](FASubmission sub) {
-				return sub.GetRating() == 1;
+				return sub.GetRating() == faRatingFlags::SFW_ONLY;
 			}), fullgallery.end());
 
 			// now download
@@ -45,7 +46,7 @@ int CFADumper::Download()
 			auto gallery = GetScrapGallery(true);
 
 			// download
-			DownloadInternal(gallery);
+			//DownloadInternal(gallery);
 		}
 		else
 		{
@@ -54,7 +55,6 @@ int CFADumper::Download()
 			// download
 			DownloadInternal(fullgallery);
 		}
-
 
 		return 0;
 	}
@@ -65,7 +65,7 @@ int CFADumper::Download()
 		auto fullgallery = GetMainGallery(false);
 
 		fullgallery.erase(std::remove_if(fullgallery.begin(), fullgallery.end(), [&](FASubmission sub) {
-			return sub.GetRating() == 1;
+			return sub.GetRating() == faRatingFlags::SFW_ONLY;
 		}), fullgallery.end());
 
 		// now download
@@ -122,7 +122,7 @@ int CFADumper::Download()
 
 std::vector<FASubmission> CFADumper::GetMainGallery(bool sfw)
 {
-	LockAssignable<std::vector<FASubmission>> gallery;
+	ThreadLock<std::vector<FASubmission>> gallery;
 	std::vector<int> tempIDs;
 
 	wchar_t tempbuff[MAX_PATH] = {};
@@ -177,18 +177,15 @@ std::vector<FASubmission> CFADumper::GetMainGallery(bool sfw)
 	}
 
 	m_totalImages = tempIDs.size();
-
-	ctpl::thread_pool threads(4);
+	m_progress.SetTotal(m_totalImages);
 
 	for (auto IDs : tempIDs) {
 
-		threads.push(ThreadedSubmissionDownload, IDs, &gallery, this);
+		g_threads.push(ThreadedSubmissionDownload, IDs, &gallery, this);
 	}
 
-	while (threads.n_idle() != threads.size())
+	while (g_threads.n_idle() != (g_threads.size() - 1))
 		std::this_thread::sleep_for(std::chrono::milliseconds(100));
-
-	threads.stop();
 
 	m_isDownloading = false;
 
@@ -197,7 +194,7 @@ std::vector<FASubmission> CFADumper::GetMainGallery(bool sfw)
 
 std::vector<FASubmission> CFADumper::GetScrapGallery(bool sfw)
 {
-	LockAssignable<std::vector<FASubmission>> scraps;
+	ThreadLock<std::vector<FASubmission>> scraps;
 	std::vector<int> tempIDs;
 
 	wchar_t tempbuff[MAX_PATH] = {};
@@ -253,17 +250,15 @@ std::vector<FASubmission> CFADumper::GetScrapGallery(bool sfw)
 	}
 
 	m_totalImages = tempIDs.size();
+	m_progress.SetTotal(m_totalImages);
 
-	ctpl::thread_pool threads(4);
 
 	for (auto IDs : tempIDs) {
-		threads.push(ThreadedSubmissionDownload, IDs, &scraps, this);
+		g_threads.push(ThreadedSubmissionDownload, IDs, &scraps, this);
 	}
 
-	while (threads.n_idle() != threads.size())
-		std::this_thread::sleep_for(std::chrono::milliseconds(50));
-
-	threads.stop();
+	while (g_threads.n_idle() != (g_threads.size() -1))
+		std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
 	m_isDownloading = false;
 
@@ -289,7 +284,7 @@ int CFADumper::CurlDownload(const std::string & url, const std::wstring & dir)
 
 	CURLcode res = curl_easy_perform(pCurl);
 	if (res != CURLE_OK) {
-		xlog::Error("Download failed! error %s\n", curl_easy_strerror(res));
+		xlog::Error("Download failed! cURL error %d: %s", res, curl_easy_strerror(res));
 	}
 
 	std::fclose(fp);
@@ -301,28 +296,23 @@ int CFADumper::CurlDownload(const std::string & url, const std::wstring & dir)
 
 int CFADumper::DownloadInternal(std::vector<FASubmission> gallery)
 {
-	m_status = "Downloading...";
+	m_status.SetText(1, L"Downloading images...");
 
 	m_totalImages = gallery.size();
 	m_currentIdx = 1;
 	m_isDownloading = true;
 
-	ctpl::thread_pool threads(4);
-
-	for (auto submission : gallery)
-	{
-		threads.push(ThreadedImageDownload, submission, this);
+	for (auto submission : gallery) {
+		g_threads.push(ThreadedImageDownload, submission, this);
 	}
 
-	while (threads.n_idle() != threads.size()) {
+	while (g_threads.n_idle() != (g_threads.size() -1)) {
 		std::this_thread::sleep_for(std::chrono::milliseconds(50));
 	}
 
-	threads.stop();
-
 	m_isDownloading = false;
 
-	m_status = "Idle";
+	m_status.SetText(1, L"Idle");
 
 	return 0;
 }
@@ -336,21 +326,17 @@ int CFADumper::ThreadedImageDownload(int id, FASubmission submission, CFADumper*
 		libdaemon::Utils::AnsiToWstring(filename);
 
 	int code = self->CurlDownload(link, savedir);
-	return self->m_currentIdx++, code;
+	self->m_currentIdx.operator++();
+	return code;
 }
 
-int CFADumper::ThreadedSubmissionDownload(int threadid, int id, LockAssignable<std::vector<FASubmission>>* gallery, CFADumper * self)
+void CFADumper::ThreadedSubmissionDownload(int threadid, int id, ThreadLock<std::vector<FASubmission>>* gallery, CFADumper* self)
 {
 	FASubmission submission(id, self);
-	//gallery->operator->()->push_back(submission);
 
-	auto gal = gallery->operator->();
-	gallery->lock();
-	gal->push_back(submission);
-	gallery->unlock();
+	self->m_progress.Step();
 
-	auto curridx = self->m_currentIdx.operator size_t();
-	self->m_currentIdx.operator=(++curridx);
+	gallery->execute([&](std::vector<FASubmission> gal) { gal.push_back(submission); });
 
-	return 0;
+	self->m_currentIdx.operator++();
 }

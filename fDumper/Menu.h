@@ -10,6 +10,7 @@
 #include "control/ComboBox.hpp"
 #include "control/Button.hpp"
 #include "control/StatusBar.hpp"
+#include "control/ProgressBar.hpp"
 #include "control/Message.hpp"
 
 #include "ctpl_stl.hpp"
@@ -36,14 +37,14 @@ private:
 	ctrl::ListView m_images;
 	ctrl::ComboBox m_ratings;
 	ctrl::ComboBox m_galleries;
+	ctrl::ProgressBar m_progress;
 	ctrl::EditBox m_username;
 	ctrl::Button m_update;
 	ctrl::Button m_startDL;
 	ctrl::Button m_stopDL;
+	ctrl::Button m_pauseDL;
+	ctrl::Button m_resumeDL;
 	ctrl::StatusBar m_status;
-
-	ctpl::thread_pool m_notapool;
-	std::thread m_dumperThread;
 
 	std::string api = "faexport.boothale.net"; 
 

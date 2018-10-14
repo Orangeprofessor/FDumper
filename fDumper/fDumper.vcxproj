@@ -242,6 +242,9 @@
   <ItemGroup>
     <ResourceCompile Include="fDumper.rc" />
   </ItemGroup>
+  <ItemGroup>
+    <Image Include="chrome_2018_05_06_10_54_28_3Re_icon.ico" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

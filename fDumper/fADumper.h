@@ -3,8 +3,14 @@
 #include "CBaseDumper.h"
 #include "curl/curl.h"
 
+#include <libda3m0n/Misc/Utils.h>
+
 #include "rapidjson/istreamwrapper.h"
 #include "rapidjson/document.h"
+
+#include "control/ProgressBar.hpp"
+#include "control/ListView.hpp"
+#include "control/StatusBar.hpp"
 
 #include <mutex>
 #include <atomic>
@@ -12,8 +18,8 @@
 enum faRatingFlags : int
 {
 	ALL_RATINGS = 0,
-	SFW_ONLY,
-	NSFW_ONLY
+	NSFW_ONLY,
+	SFW_ONLY
 };
 
 enum faGalleryFlags : int
@@ -24,29 +30,69 @@ enum faGalleryFlags : int
 };
 
 template<typename T>
-class LockAssignable
+class ThreadLock
 {
 public:
-	LockAssignable& operator=(const T& t) {
-		std::lock_guard<std::mutex> lk(m_mutex);
+	ThreadLock& operator=(const T& t) {
+		std::lock_guard<std::mutex> lock(m_mutex);
 		m_protected = t;
 		return *this;
 	}
 	operator T() const {
-		std::lock_guard<std::mutex> lk(m_mutex);
+		std::lock_guard<std::mutex> lock(m_mutex);
 		return m_protected;
 	}
-	T* operator->() {
-		std::lock_guard<std::mutex> lk(m_mutex);
-		return &m_protected;
+	void execute(std::function<void(T)> callback) {
+		assert(callback != nullptr);
+		std::lock_guard<std::mutex> lock(m_mutex);
+		callback(m_protected);
 	}
-	inline void lock() {
-		m_mutex.lock();
-	}
-	inline void unlock() {
-		m_mutex.unlock();
-	}
+private:
+	mutable std::mutex m_mutex;
+	T m_protected{};
+};
 
+template <typename T>
+class ArithmeticThreadLock
+{
+public:
+	ArithmeticThreadLock<T>() {
+		static_assert(std::is_arithmetic<T>::value);
+	}
+	ArithmeticThreadLock& operator=(const T& t) {
+		std::lock_guard<std::mutex> lock(m_mutex);
+		m_protected = t;
+		return *this;
+	}
+	operator T() const {
+		std::lock_guard<std::mutex> lock(m_mutex);
+		return m_protected;
+	}
+	ArithmeticThreadLock& operator++() {
+		std::lock_guard<std::mutex> lock(m_mutex);
+		m_protected++;
+		return *this;
+	}
+	ArithmeticThreadLock& operator--() {
+		std::lock_guard<std::mutex> lock(m_mutex);
+		m_protected--;
+		return *this;
+	}
+	ArithmeticThreadLock& operator+=(const T t) {
+		std::lock_guard<std::mutex> lock(m_mutex);
+		m_protected += t;
+		return *this;
+	}
+	ArithmeticThreadLock& operator-=(const T t) {
+		std::lock_guard<std::mutex> lock(m_mutex);
+		m_protected -= t;
+		return *this;
+	}
+	void execute(std::function<void(T)>& callback) {
+		assert(callback != nullptr);
+		std::lock_guard<std::mutex> lock(m_mutex);
+		callback(m_protected);
+	}
 private:
 	mutable std::mutex m_mutex;
 	T m_protected{};
@@ -54,21 +100,22 @@ private:
 
 struct FASubmission;
 
-class CFADumper : public CBaseDumper
+class CFADumper  : public CBaseDumper
 {
 public:
-	CFADumper(const std::string apiurl, std::string uname, std::wstring savedir, int rating, int gallery, bool scrapfolder);
+	CFADumper(const std::string apiurl, std::string uname, std::wstring savedir, 
+		faRatingFlags rating, faGalleryFlags gallery, ctrl::ListView& imglist, 
+		ctrl::StatusBar& status, ctrl::ProgressBar& progress);
 	~CFADumper();
 
 	virtual int Download()override;
 
 	int CurlDownload(const std::string& url, const std::wstring& dir);
 
-	LockAssignable<std::string> m_imagename;
-	std::atomic<size_t> m_currentIdx;
-	std::atomic<size_t> m_totalImages;
-	LockAssignable<bool> m_isDownloading;
-	LockAssignable<std::string> m_status;
+	ThreadLock<std::string> m_imagename;
+	ThreadLock<bool> m_isDownloading;
+	ArithmeticThreadLock<size_t> m_currentIdx;
+	ArithmeticThreadLock<size_t> m_totalImages;
 
 private:
 	std::vector<FASubmission> GetMainGallery(bool sfw);
@@ -76,13 +123,16 @@ private:
 
 	int DownloadInternal(std::vector<FASubmission> gallery);
 	static int ThreadedImageDownload(int id, FASubmission submission, CFADumper* self);
-	static int ThreadedSubmissionDownload(int threadid, int id, LockAssignable<std::vector<FASubmission>>* gallery, CFADumper* self);
+	static void ThreadedSubmissionDownload(int threadid, int id, ThreadLock<std::vector<FASubmission>>* gallery, CFADumper* self);
 public:
 	const std::string m_apiurl;
 	std::string m_uHandle;
 	std::wstring m_saveDirectory;
 	faRatingFlags m_rating;
 	faGalleryFlags m_gallery;
+	ctrl::ListView& m_listview;
+	ctrl::StatusBar& m_status;
+	ctrl::ProgressBar& m_progress;
 };
 
 struct FASubmission
@@ -124,6 +174,12 @@ struct FASubmission
 
 		auto imagerating = doc.FindMember("rating");
 		imagerating->value.GetString() == std::string("General") ? rating = 1 : rating = 2;
+
+		auto wtitle = libdaemon::Utils::AnsiToWstring(title);
+		auto wid = std::to_wstring(submissionID);
+		auto wrating = libdaemon::Utils::AnsiToWstring(imagerating->value.GetString());
+
+		dumper->m_listview.AddItem(wtitle, static_cast<LPARAM>(submissionID), { wid, wrating });
 
 		_wremove(dlpath.c_str());
 	}
