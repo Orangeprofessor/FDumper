@@ -5,6 +5,7 @@
 #define IDD_MAIN                        101
 #define IDR_MENU1                       103
 #define IDD_APIMENU                     108
+#define IDI_TAILS                       137
 #define IDC_CANCEL_DL                   1016
 #define IDC_START_DL                    1017
 #define IDC_PAUSE_DL                    1018
@@ -27,7 +28,7 @@
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        110
+#define _APS_NEXT_RESOURCE_VALUE        139
 #define _APS_NEXT_COMMAND_VALUE         40005
 #define _APS_NEXT_CONTROL_VALUE         1038
 #define _APS_NEXT_SYMED_VALUE           101

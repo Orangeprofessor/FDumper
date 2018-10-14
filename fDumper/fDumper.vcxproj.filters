@@ -39,9 +39,6 @@
     <ClInclude Include="fDumper.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="ctpl_stl.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="CBaseDumper.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -250,5 +247,10 @@
     <ResourceCompile Include="fDumper.rc">
       <Filter>Resource Files</Filter>
     </ResourceCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="smugtails.ico">
+      <Filter>Resource Files</Filter>
+    </Image>
   </ItemGroup>
 </Project>
