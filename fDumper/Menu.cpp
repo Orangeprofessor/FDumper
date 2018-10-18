@@ -6,7 +6,6 @@
 
 #include "fADumper.h"
 
-#include <libda3m0n/Misc/Utils.h>
 #include <ShlObj.h>
 
 CMainDialog::CMainDialog() : Dialog(IDD_MAIN)
@@ -22,7 +21,7 @@ CMainDialog::CMainDialog() : Dialog(IDD_MAIN)
 
 CMainDialog::~CMainDialog()
 {
-	TerminateThread(m_downloadThread.native_handle(), 0);
+	
 }
 
 INT_PTR CMainDialog::OnInit(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
@@ -89,7 +88,7 @@ INT_PTR CMainDialog::OnDLStart(HWND hDlg, UINT message, WPARAM wParam, LPARAM lP
 	CreateDirectory(dest.c_str(), NULL);
 
 	pDumper = new CFADumper(api,
-		libdaemon::Utils::WstringToAnsi(username), dest,
+		WstringToAnsi(username), dest,
 		(faRatingFlags)ratings, (faGalleryFlags)galleries, m_images, m_status, m_progress);
 
 	m_downloadThread = std::thread([&]() {pDumper->Download(); });
@@ -162,7 +161,7 @@ INT_PTR CAPIMenu::OnInit(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 
 	m_api.Attach(m_hwnd, IDC_APIURL);
 
-	m_api.text(libdaemon::Utils::AnsiToWstring(m_ret));
+	m_api.text(AnsiToWstring(m_ret));
 
 	return TRUE;
 }
@@ -175,13 +174,13 @@ INT_PTR CAPIMenu::OnOk(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 	std::string pattern = R"(^(([^:\/?#]+):)?(//([^\/?#]*))?([^?#]*)(\?([^#]*))?(#(.*))?)";
 	std::regex url_regex(pattern, std::regex::extended);
 
-	bool validurl = std::regex_match(libdaemon::Utils::WstringToAnsi(input), url_regex);
+	bool validurl = std::regex_match(WstringToAnsi(input), url_regex);
 
 	if (validurl)
 	{
 		CURL* pCurl = curl_easy_init();
 
-		curl_easy_setopt(pCurl, CURLOPT_URL, libdaemon::Utils::WstringToAnsi(input).c_str());
+		curl_easy_setopt(pCurl, CURLOPT_URL, WstringToAnsi(input).c_str());
 		curl_easy_setopt(pCurl, CURLOPT_TIMEOUT, 10);
 		curl_easy_setopt(pCurl, CURLOPT_NOBODY, 1);
 
@@ -193,17 +192,17 @@ INT_PTR CAPIMenu::OnOk(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 
 		if (res != CURLE_OK)
 		{
-			std::wstring msg = L"Connection error! " + libdaemon::Utils::AnsiToWstring(err) + L", continue anyway?";
+			std::wstring msg = L"Connection error! " + AnsiToWstring(err) + L", continue anyway?";
 			if (Message::ShowQuestion(m_hwnd, msg, L"Connyection Wawnying UwU")) {
 				//set
-				m_ret.assign(libdaemon::Utils::WstringToAnsi(m_api.text()));
+				m_ret.assign(WstringToAnsi(m_api.text()));
 				return Dialog::OnClose(hDlg, message, wParam, lParam);
 			}
 		}
 		else
 		{
 			//set
-			m_ret.assign(libdaemon::Utils::WstringToAnsi(m_api.text()));
+			m_ret.assign(WstringToAnsi(m_api.text()));
 			return Dialog::OnClose(hDlg, message, wParam, lParam);
 		}
 	}

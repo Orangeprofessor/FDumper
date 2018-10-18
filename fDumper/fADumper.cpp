@@ -5,8 +5,6 @@
 #include "Log.h"
 
 #include <ShlObj.h>
-#include <libda3m0n/Misc/Utils.h>
-
 
 CFADumper::CFADumper(const std::string apiurl, std::string uname, std::wstring savedir, faRatingFlags rating,
 	faGalleryFlags gallery, ctrl::ListView& imglist, ctrl::StatusBar& status, ctrl::ProgressBar& progress) : m_apiurl(apiurl), m_uHandle(uname),
@@ -144,7 +142,7 @@ std::vector<FASubmission> CFADumper::GetMainGallery(bool sfw)
 
 		std::wstring submissions;
 		submissions.assign(tempbuff);
-		submissions += L"\\" + libdaemon::Utils::AnsiToWstring(m_uHandle) + std::to_wstring(curpage) + std::wstring(L".json");
+		submissions += L"\\" + AnsiToWstring(m_uHandle) + std::to_wstring(curpage) + std::wstring(L".json");
 
 		if (int err = CurlDownload(urlbuff, submissions))
 		{
@@ -180,9 +178,15 @@ std::vector<FASubmission> CFADumper::GetMainGallery(bool sfw)
 
 	for (auto IDs : tempIDs)
 	{
-		FASubmission submission(IDs, this);
+		FASubmission submission(IDs);
 
 		gallery.push_back(submission);
+
+		auto wtitle = AnsiToWstring(submission.GetSubmissionTitle());
+		auto wid = std::to_wstring(submission.GetSubmissionID());
+		auto wrating = AnsiToWstring(submission.GetRatingText());
+
+		m_listview.AddItem(wtitle, static_cast<LPARAM>(submission.GetSubmissionID()), { wid, wrating });
 
 		m_progress.Step();
 
@@ -220,7 +224,7 @@ std::vector<FASubmission> CFADumper::GetScrapGallery(bool sfw)
 
 		std::wstring submissions;
 		submissions.assign(tempbuff);
-		submissions += L"\\" + libdaemon::Utils::AnsiToWstring(m_uHandle) + std::to_wstring(curpage) + std::wstring(L".json");
+		submissions += L"\\" + AnsiToWstring(m_uHandle) + std::to_wstring(curpage) + std::wstring(L".json");
 
 		if (int err = CurlDownload(urlbuff, submissions))
 		{
@@ -254,12 +258,17 @@ std::vector<FASubmission> CFADumper::GetScrapGallery(bool sfw)
 	m_totalImages = tempIDs.size();
 	m_progress.SetTotal(m_totalImages);
 
-
 	for (auto IDs : tempIDs) 
 	{
-		FASubmission submission(IDs, this);
+		FASubmission submission(IDs);
 
 		scraps.push_back(submission);
+
+		auto wtitle = AnsiToWstring(submission.GetSubmissionTitle());
+		auto wid = std::to_wstring(submission.GetSubmissionID());
+		auto wrating = AnsiToWstring(submission.GetRatingText());
+
+		m_listview.AddItem(wtitle, static_cast<LPARAM>(submission.GetSubmissionID()), { wid, wrating });
 
 		m_progress.Step();
 
@@ -314,7 +323,7 @@ int CFADumper::DownloadInternal(std::vector<FASubmission> gallery)
 		auto filename = link.substr(link.find_last_of("/") + 1);
 
 		std::wstring savedir = m_saveDirectory + std::wstring(L"\\") +
-			libdaemon::Utils::AnsiToWstring(filename);
+			AnsiToWstring(filename);
 
 		if (int code = CurlDownload(link, savedir)) {
 

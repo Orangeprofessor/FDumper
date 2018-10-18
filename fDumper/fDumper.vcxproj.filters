@@ -9,21 +9,6 @@
       <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
       <Extensions>h;hh;hpp;hxx;hm;inl;inc;ipp;xsd</Extensions>
     </Filter>
-    <Filter Include="curl">
-      <UniqueIdentifier>{b4c1b519-b7a4-44ac-af9b-7ba230ab97e2}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="rapidjson">
-      <UniqueIdentifier>{99f8d74e-f85a-41a5-bd8e-a97e4f7341d3}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="rapidjson\msinttypes">
-      <UniqueIdentifier>{3ad0e987-a0a1-4954-9511-3427b8ca76a6}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="rapidjson\error">
-      <UniqueIdentifier>{c708d042-4552-46ad-9148-51ca6d8212b7}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="rapidjson\internal">
-      <UniqueIdentifier>{8101da32-8590-463f-90b6-82329e1d1d5f}</UniqueIdentifier>
-    </Filter>
     <Filter Include="control">
       <UniqueIdentifier>{928adfd1-6bf8-4c4d-a96d-49dd573e86b6}</UniqueIdentifier>
     </Filter>
@@ -45,30 +30,6 @@
     <ClInclude Include="fADumper.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="curl\curl.h">
-      <Filter>curl</Filter>
-    </ClInclude>
-    <ClInclude Include="curl\curlver.h">
-      <Filter>curl</Filter>
-    </ClInclude>
-    <ClInclude Include="curl\easy.h">
-      <Filter>curl</Filter>
-    </ClInclude>
-    <ClInclude Include="curl\mprintf.h">
-      <Filter>curl</Filter>
-    </ClInclude>
-    <ClInclude Include="curl\multi.h">
-      <Filter>curl</Filter>
-    </ClInclude>
-    <ClInclude Include="curl\stdcheaders.h">
-      <Filter>curl</Filter>
-    </ClInclude>
-    <ClInclude Include="curl\system.h">
-      <Filter>curl</Filter>
-    </ClInclude>
-    <ClInclude Include="curl\typecheck-gcc.h">
-      <Filter>curl</Filter>
-    </ClInclude>
     <ClInclude Include="resource.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -79,117 +40,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Menu.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="rapidjson\msinttypes\inttypes.h">
-      <Filter>rapidjson\msinttypes</Filter>
-    </ClInclude>
-    <ClInclude Include="rapidjson\msinttypes\stdint.h">
-      <Filter>rapidjson\msinttypes</Filter>
-    </ClInclude>
-    <ClInclude Include="rapidjson\error\en.h">
-      <Filter>rapidjson\error</Filter>
-    </ClInclude>
-    <ClInclude Include="rapidjson\error\error.h">
-      <Filter>rapidjson\error</Filter>
-    </ClInclude>
-    <ClInclude Include="rapidjson\internal\biginteger.h">
-      <Filter>rapidjson\internal</Filter>
-    </ClInclude>
-    <ClInclude Include="rapidjson\internal\diyfp.h">
-      <Filter>rapidjson\internal</Filter>
-    </ClInclude>
-    <ClInclude Include="rapidjson\internal\dtoa.h">
-      <Filter>rapidjson\internal</Filter>
-    </ClInclude>
-    <ClInclude Include="rapidjson\internal\ieee754.h">
-      <Filter>rapidjson\internal</Filter>
-    </ClInclude>
-    <ClInclude Include="rapidjson\internal\itoa.h">
-      <Filter>rapidjson\internal</Filter>
-    </ClInclude>
-    <ClInclude Include="rapidjson\internal\meta.h">
-      <Filter>rapidjson\internal</Filter>
-    </ClInclude>
-    <ClInclude Include="rapidjson\internal\pow10.h">
-      <Filter>rapidjson\internal</Filter>
-    </ClInclude>
-    <ClInclude Include="rapidjson\internal\regex.h">
-      <Filter>rapidjson\internal</Filter>
-    </ClInclude>
-    <ClInclude Include="rapidjson\internal\stack.h">
-      <Filter>rapidjson\internal</Filter>
-    </ClInclude>
-    <ClInclude Include="rapidjson\internal\strfunc.h">
-      <Filter>rapidjson\internal</Filter>
-    </ClInclude>
-    <ClInclude Include="rapidjson\internal\strtod.h">
-      <Filter>rapidjson\internal</Filter>
-    </ClInclude>
-    <ClInclude Include="rapidjson\internal\swap.h">
-      <Filter>rapidjson\internal</Filter>
-    </ClInclude>
-    <ClInclude Include="rapidjson\allocators.h">
-      <Filter>rapidjson</Filter>
-    </ClInclude>
-    <ClInclude Include="rapidjson\cursorstreamwrapper.h">
-      <Filter>rapidjson</Filter>
-    </ClInclude>
-    <ClInclude Include="rapidjson\document.h">
-      <Filter>rapidjson</Filter>
-    </ClInclude>
-    <ClInclude Include="rapidjson\encodedstream.h">
-      <Filter>rapidjson</Filter>
-    </ClInclude>
-    <ClInclude Include="rapidjson\encodings.h">
-      <Filter>rapidjson</Filter>
-    </ClInclude>
-    <ClInclude Include="rapidjson\filereadstream.h">
-      <Filter>rapidjson</Filter>
-    </ClInclude>
-    <ClInclude Include="rapidjson\filewritestream.h">
-      <Filter>rapidjson</Filter>
-    </ClInclude>
-    <ClInclude Include="rapidjson\fwd.h">
-      <Filter>rapidjson</Filter>
-    </ClInclude>
-    <ClInclude Include="rapidjson\istreamwrapper.h">
-      <Filter>rapidjson</Filter>
-    </ClInclude>
-    <ClInclude Include="rapidjson\memorybuffer.h">
-      <Filter>rapidjson</Filter>
-    </ClInclude>
-    <ClInclude Include="rapidjson\memorystream.h">
-      <Filter>rapidjson</Filter>
-    </ClInclude>
-    <ClInclude Include="rapidjson\ostreamwrapper.h">
-      <Filter>rapidjson</Filter>
-    </ClInclude>
-    <ClInclude Include="rapidjson\pointer.h">
-      <Filter>rapidjson</Filter>
-    </ClInclude>
-    <ClInclude Include="rapidjson\prettywriter.h">
-      <Filter>rapidjson</Filter>
-    </ClInclude>
-    <ClInclude Include="rapidjson\rapidjson.h">
-      <Filter>rapidjson</Filter>
-    </ClInclude>
-    <ClInclude Include="rapidjson\reader.h">
-      <Filter>rapidjson</Filter>
-    </ClInclude>
-    <ClInclude Include="rapidjson\schema.h">
-      <Filter>rapidjson</Filter>
-    </ClInclude>
-    <ClInclude Include="rapidjson\stream.h">
-      <Filter>rapidjson</Filter>
-    </ClInclude>
-    <ClInclude Include="rapidjson\stringbuffer.h">
-      <Filter>rapidjson</Filter>
-    </ClInclude>
-    <ClInclude Include="rapidjson\writer.h">
-      <Filter>rapidjson</Filter>
-    </ClInclude>
-    <ClInclude Include="watcher.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="control\Button.hpp">
@@ -237,9 +87,6 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Menu.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="watcher.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
