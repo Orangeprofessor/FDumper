@@ -1,164 +1,170 @@
 #include "pch.h"
 
+#include "FASubmission.h"
+
+#include "rapidjson/ostreamwrapper.h"
+#include "rapidjson/writer.h"
+
 #include "fADumper.h"
-#include "control/Message.hpp"
 #include "Log.h"
 
-#include <ShlObj.h>
-
-CFADumper::CFADumper(const std::string apiurl, std::string uname, std::wstring savedir, faRatingFlags rating,
-	faGalleryFlags gallery, ctrl::ListView& imglist, ctrl::StatusBar& status, ctrl::ProgressBar& progress) : m_apiurl(apiurl), m_uHandle(uname),
-	m_saveDirectory(savedir), m_rating((faRatingFlags)rating), m_gallery((faGalleryFlags)gallery), m_listview(imglist), m_status(status), m_progress(progress)
+void mainDump(const int argc, const char* argv[])
 {
-
+	CFADumper dump;
+	dump.Main(argc, argv);
 }
 
-CFADumper::~CFADumper()
+void CFADumper::PrintDescription()
 {
+	console_print("FurAffinity user gallery dumper\n");
+	console_print("Usage: FDumper.exe dump [flags] [user1] [user2] ...\n");
+	console_print("--sfw-only (-sfw) Only dump SFW submissions\n");
+	console_print("--nsfw-only (-nsfw) Only dump NSFW submissions\n");
+	console_print("--scraps-only (-scraps) Only dump images from the scraps folder\n");
+	console_print("--no-scraps (-noscraps) Only dump images from the main gallery\n");
+}
 
+bool CFADumper::Argument(arg_t & arg)
+{
+	std::string s = arg.v[arg.i];
+
+	if (!s.compare("--sfw-only") || !s.compare("-sfw"))
+	{
+		m_rating = SFW_ONLY;
+		return ++arg.i < arg.c;
+	}
+	else if (!s.compare("--nsfw-only") || !s.compare("-nsfw"))
+	{
+		m_rating = NSFW_ONLY;
+		return ++arg.i < arg.c;
+	}
+	else if (!s.compare("--scraps-only") || !s.compare("-scraps"))
+	{
+		m_gallery = SCRAPS_ONLY;
+		return ++arg.i < arg.c;
+	}
+	else if (!s.compare("--no-scraps") || !s.compare("-noscraps"))
+	{
+		m_gallery = NO_SCRAPS;
+		return ++arg.i < arg.c;
+	}
+	else
+	{
+		return BaseClass::Argument(arg);
+	}
+}
+
+void CFADumper::Action(arg_t & arg)
+{
+	for (; arg.i < arg.c; ++arg.i)
+	{
+		m_savedir.erase(); m_savedir.assign(m_path);
+
+		m_uHandle = arg.v[arg.i];
+		CreateDirectoryW((m_savedir + L"\\" + AnsiToWstring(m_uHandle)).c_str(), NULL);
+
+		char jsonbuff[80];
+		sprintf_s(jsonbuff, "[\n \"%d\", \"%d\" \n]", m_rating, m_gallery);
+
+		rapidjson::Document doc;
+		doc.Parse(jsonbuff);
+
+		std::ofstream ofs(m_savedir + L"\\" + AnsiToWstring(m_uHandle) + L"\\" + std::wstring(L"config.json"));
+		rapidjson::OStreamWrapper osw(ofs);
+
+		rapidjson::Writer<rapidjson::OStreamWrapper> writer(osw);
+		doc.Accept(writer);
+
+		ofs.close();
+
+		Download();
+	}
 }
 
 int CFADumper::Download()
 {
-	m_status.SetText(1, L"Downloading submission data...");
+	m_savedir += L"\\" + AnsiToWstring(m_uHandle);
+	CreateDirectoryW(m_savedir.c_str(), NULL);
+
+	console_print("Processing user gallery '%s'\n", m_uHandle.c_str());
 
 	if (m_gallery == faGalleryFlags::SCRAPS_ONLY)
 	{
-		m_saveDirectory += L"\\" + std::wstring(L"Scraps");
-		CreateDirectory(m_saveDirectory.c_str(), NULL);
+		m_savedir += L"\\" + std::wstring(L"Scraps");
 
-		if (m_rating == faRatingFlags::NSFW_ONLY)
-		{
-			auto fullgallery = GetScrapGallery(false);
+		CreateDirectoryW(m_savedir.c_str(), NULL);
 
-			fullgallery.erase(std::remove_if(fullgallery.begin(), fullgallery.end(), [&](FASubmission sub) {
-				return sub.GetRating() == faRatingFlags::SFW_ONLY;
-			}), fullgallery.end());
+		auto fullgallery = GetScrapGallery();
 
-			// now download
-			DownloadInternal(fullgallery);
-		}
-		else if (m_rating == faRatingFlags::SFW_ONLY)
-		{
-			auto gallery = GetScrapGallery(true);
-
-			// download
-			DownloadInternal(gallery);
-		}
-		else
-		{
-			auto fullgallery = GetScrapGallery(false);
-
-			// download
-			DownloadInternal(fullgallery);
-		}
+		// download
+		DownloadInternal(fullgallery);
 
 		return 0;
 	}
 
+	auto fullgallery = GetMainGallery();
 
-	if (m_rating == faRatingFlags::NSFW_ONLY)
+	DownloadInternal(fullgallery);
+
+	if (m_gallery != faGalleryFlags::NO_SCRAPS)
 	{
-		auto fullgallery = GetMainGallery(false);
+		auto scrapgallery = GetScrapGallery();
 
-		fullgallery.erase(std::remove_if(fullgallery.begin(), fullgallery.end(), [&](FASubmission sub) {
-			return sub.GetRating() == faRatingFlags::SFW_ONLY;
-		}), fullgallery.end());
+		m_savedir += L"\\" + std::wstring(L"Scraps");
+		CreateDirectoryW(m_savedir.c_str(), NULL);
 
-		// now download
-		DownloadInternal(fullgallery);
-
-		// now do scraps if wanted
-		if (m_gallery != faGalleryFlags::NO_SCRAPS)
-		{
-			auto fullscrapgallery = GetScrapGallery(false);
-
-			fullscrapgallery.erase(std::remove_if(fullscrapgallery.begin(), fullscrapgallery.end(), [&](FASubmission sub) {
-				return sub.GetRating() == 1;
-			}), fullscrapgallery.end());
-
-			m_saveDirectory += L"\\" + std::wstring(L"Scraps");
-			CreateDirectory(m_saveDirectory.c_str(), NULL);
-
-			DownloadInternal(fullscrapgallery);
-		}
-	}
-	else if (m_rating == faRatingFlags::SFW_ONLY)
-	{
-		auto gallery = GetMainGallery(true);
-
-		DownloadInternal(gallery);
-
-		if (m_gallery != faGalleryFlags::NO_SCRAPS) {
-			auto scrapgallery = GetScrapGallery(true);
-
-			m_saveDirectory += L"\\" + std::wstring(L"Scraps");
-			CreateDirectory(m_saveDirectory.c_str(), NULL);
-
-			DownloadInternal(scrapgallery);
-		}
-	}
-	else
-	{
-		auto fullgallery = GetMainGallery(false);
-
-		DownloadInternal(fullgallery);
-
-		if (m_gallery != faGalleryFlags::NO_SCRAPS) {
-			auto scrapgallery = GetScrapGallery(false);
-
-			m_saveDirectory += L"\\" + std::wstring(L"Scraps");
-			CreateDirectory(m_saveDirectory.c_str(), NULL);
-
-			DownloadInternal(scrapgallery);
-		}
+		DownloadInternal(scrapgallery);
 	}
 
 	return 0;
 }
 
-std::vector<FASubmission> CFADumper::GetMainGallery(bool sfw)
+std::vector<FASubmission> CFADumper::GetMainGallery()
 {
 	std::vector<FASubmission> gallery;
 	std::vector<int> tempIDs;
 
-	wchar_t tempbuff[MAX_PATH] = {};
-	GetTempPath(MAX_PATH, tempbuff);
+	auto curlDownload = [&](const std::string& url, std::string& buffer) -> CURLcode
+	{
+		CURL* pCurl = curl_easy_init();
 
-	m_currentIdx = 0;
-	m_totalImages = 0;
-	m_isDownloading = true;
+		curl_easy_setopt(pCurl, CURLOPT_URL, url.c_str());
+		curl_easy_setopt(pCurl, CURLOPT_WRITEFUNCTION, writebuffercallback);
+		curl_easy_setopt(pCurl, CURLOPT_WRITEDATA, &buffer);
+		CURLcode code = curl_easy_perform(pCurl);
+
+		curl_easy_cleanup(pCurl);
+		return code;
+	};
 
 	int curpage = 1;
+	console_print("Downloading submission pages...");
 	while (true)
 	{
 		char urlbuff[200] = {};
-		if (sfw) {
-			sprintf_s(urlbuff, "%s/user/%s/gallery.json?sfw=1&page=%d", m_apiurl.c_str(), m_uHandle.c_str(), curpage);
+		if (m_rating == SFW_ONLY) {
+			sprintf_s(urlbuff, "%s/user/%s/gallery.json?sfw=1&page=%d", m_api.c_str(), m_uHandle.c_str(), curpage);
 		}
 		else {
-			sprintf_s(urlbuff, "%s/user/%s/gallery.json?page=%d", m_apiurl.c_str(), m_uHandle.c_str(), curpage);
+			sprintf_s(urlbuff, "%s/user/%s/gallery.json?page=%d", m_api.c_str(), m_uHandle.c_str(), curpage);
 		}
 
-		std::wstring submissions;
-		submissions.assign(tempbuff);
-		submissions += L"\\" + AnsiToWstring(m_uHandle) + std::to_wstring(curpage) + std::wstring(L".json");
+		std::string buffer;
 
-		if (int err = CurlDownload(urlbuff, submissions))
+		if (CURLcode err = curlDownload(urlbuff, buffer))
 		{
-			wchar_t buf[128];
-			std::swprintf(buf, sizeof(buf), L"Couldn't download page %d!, curl error %d", curpage, err);
-
-			Message::ShowError(GetActiveWindow(), buf);
+			console_print("Couldn't download page %d!, %s, retrying...\n", curpage, curl_easy_strerror(err));
+			continue;
 		}
 
-		std::ifstream ifs(submissions);
-		rapidjson::IStreamWrapper isw(ifs);
+		if (buffer == "FAExport encounter an internal error") {
+			std::printf("\n");
+			console_print("download error! retrying...\n");
+			continue;
+		}
 
 		rapidjson::Document doc;
-		doc.ParseStream(isw);
-
-		ifs.close();
+		doc.Parse(buffer.c_str());
 
 		for (auto itr = doc.Begin(); itr != doc.End(); ++itr)
 		{
@@ -167,80 +173,143 @@ std::vector<FASubmission> CFADumper::GetMainGallery(bool sfw)
 
 			tempIDs.push_back(subID);
 		}
+	
+		auto docsize = doc.Size();
+		if (docsize < 72)
+			break;
 
 		++curpage;
-		if (doc.Size() < 72)
-			break;
 	}
 
-	m_totalImages = tempIDs.size();
-	m_progress.SetTotal(m_totalImages);
+	if (m_rating == NSFW_ONLY)
+	{
+		curpage = 1;
+		std::vector<int> sfwIDs;
+
+		while (true)
+		{
+			char urlbuff[200] = {};
+			sprintf_s(urlbuff, "%s/user/%s/gallery.json?sfw=1&page=%d", m_api.c_str(), m_uHandle.c_str(), curpage);
+
+			std::string buffer;
+
+			if (CURLcode err = curlDownload(urlbuff, buffer))
+			{
+				console_print("Couldn't download page %d!, %s, retrying...\n", curpage, curl_easy_strerror(err));
+				continue;
+			}
+
+			if (buffer == "FAExport encounter an internal error") {
+				std::printf("\n");
+				console_print("download error! retrying...\n");
+				continue;
+			}
+
+			rapidjson::Document doc;
+			doc.Parse(buffer.c_str());
+
+			for (auto itr = doc.Begin(); itr != doc.End(); ++itr)
+			{
+				std::string jsonElm = itr->GetString();
+				int subID = std::stoi(jsonElm);
+
+				sfwIDs.push_back(subID);
+			}
+
+			auto docsize = doc.Size();
+			if (docsize < 72)
+				break;
+			++curpage;
+		}
+
+		tempIDs.erase(std::remove_if(tempIDs.begin(), tempIDs.end(), [&](int id)
+		{
+			return std::find(sfwIDs.begin(), sfwIDs.end(), id) != sfwIDs.end();
+		}), tempIDs.end());
+	}
+	std::printf("Done!\n");
+
+	console_print("%d total images\n", tempIDs.size());
+
+	int progress = 1;
 
 	for (auto IDs : tempIDs)
 	{
 		FASubmission submission(IDs);
 
+		console_print("Downloading submission data...");
+
+		int barWidth = 45;
+		std::cout << "[";
+		int pos = ((float)progress / (float)tempIDs.size()) * barWidth;
+		for (int i = 0; i < barWidth; ++i) {
+			if (i < pos) std::cout << "=";
+			else if (i == pos) std::cout << ">";
+			else std::cout << " ";
+		}
+		std::cout << "] " << int(((float)progress / (float)tempIDs.size()) * 100) << "%\r";
+		std::cout.flush();;
+
+		submission.Setup(m_api);
+
+		++progress;
+
 		gallery.push_back(submission);
-
-		auto wtitle = AnsiToWstring(submission.GetSubmissionTitle());
-		auto wid = std::to_wstring(submission.GetSubmissionID());
-		auto wrating = AnsiToWstring(submission.GetRatingText());
-
-		m_listview.AddItem(wtitle, static_cast<LPARAM>(submission.GetSubmissionID()), { wid, wrating });
-
-		m_progress.Step();
-
-		m_currentIdx++;
 	}
 
-	m_isDownloading = false;
+	std::printf("\n");
 
 	return gallery;
 }
 
-std::vector<FASubmission> CFADumper::GetScrapGallery(bool sfw)
+std::vector<FASubmission> CFADumper::GetScrapGallery()
 {
 	std::vector<FASubmission> scraps;
 	std::vector<int> tempIDs;
 
-	wchar_t tempbuff[MAX_PATH] = {};
-	GetTempPath(MAX_PATH, tempbuff);
+	auto curlDownload = [&](const std::string& url, std::string& buffer) -> CURLcode
+	{
+		CURL* pCurl = curl_easy_init();
 
-	m_currentIdx = 0;
-	m_totalImages = 0;
-	m_isDownloading = true;
+		curl_easy_setopt(pCurl, CURLOPT_URL, url.c_str());
+		curl_easy_setopt(pCurl, CURLOPT_WRITEFUNCTION, writebuffercallback);
+		curl_easy_setopt(pCurl, CURLOPT_WRITEDATA, &buffer);
+		CURLcode code = curl_easy_perform(pCurl);
+
+		curl_easy_cleanup(pCurl);
+		return code;
+	};
+
 
 	int curpage = 1;
+	console_print("Downloading scrap submission pages...");
 	while (true)
 	{
 		char urlbuff[200] = {};
 
-		if (sfw) {
-			sprintf_s(urlbuff, "%s/user/%s/scraps.json?sfw=1&page=%d", m_apiurl.c_str(), m_uHandle.c_str(), curpage);
+		if (m_rating == SFW_ONLY) {
+			sprintf_s(urlbuff, "%s/user/%s/scraps.json?sfw=1&page=%d", m_api.c_str(), m_uHandle.c_str(), curpage);
 		}
 		else {
-			sprintf_s(urlbuff, "%s/user/%s/scraps.json?page=%d", m_apiurl.c_str(), m_uHandle.c_str(), curpage);
+			sprintf_s(urlbuff, "%s/user/%s/scraps.json?page=%d", m_api.c_str(), m_uHandle.c_str(), curpage);
 		}
 
-		std::wstring submissions;
-		submissions.assign(tempbuff);
-		submissions += L"\\" + AnsiToWstring(m_uHandle) + std::to_wstring(curpage) + std::wstring(L".json");
+		std::string buffer;
 
-		if (int err = CurlDownload(urlbuff, submissions))
+		if (CURLcode err = curlDownload(urlbuff, buffer))
 		{
-			wchar_t buf[128];
-			std::swprintf(buf, sizeof(buf), L"Couldn't download page %d!, curl error %d", curpage, err);
-
-			Message::ShowError(GetActiveWindow(), buf);
+			console_print("Couldn't download page %d!, %s, retrying...", curpage, curl_easy_strerror(err));
+			continue;
 		}
 
-		std::ifstream ifs(submissions);
-		rapidjson::IStreamWrapper isw(ifs);
+		if (buffer == "FAExport encounter an internal error") {
+			std::printf("\n");
+			console_print("download error! retrying...\n");
+			continue;
+		}
 
 		rapidjson::Document doc;
-		doc.ParseStream(isw);
-
-		ifs.close();
+		doc.Parse(buffer.c_str());
 
 		for (auto itr = doc.Begin(); itr != doc.End(); ++itr)
 		{
@@ -250,90 +319,160 @@ std::vector<FASubmission> CFADumper::GetScrapGallery(bool sfw)
 			tempIDs.push_back(subID);
 		}
 
-		++curpage;
-		if (doc.Size() < 72)
+		
+		auto docsize = doc.Size();
+		if (docsize < 72)
 			break;
+
+		++curpage;
 	}
 
-	m_totalImages = tempIDs.size();
-	m_progress.SetTotal(m_totalImages);
+	if (m_rating == NSFW_ONLY)
+	{
+		curpage = 1;
+		std::vector<int> sfwIDs;
 
-	for (auto IDs : tempIDs) 
+		while (true)
+		{
+			char urlbuff[200] = {};
+			sprintf_s(urlbuff, "%s/user/%s/scraps.json?sfw=1&page=%d", m_api.c_str(), m_uHandle.c_str(), curpage);
+
+
+			std::string buffer;
+
+			if (CURLcode err = curlDownload(urlbuff, buffer))
+			{
+				console_print("Couldn't download page %d!, %s, retrying...\n", curpage, curl_easy_strerror(err));
+				continue;
+			}
+
+			if (buffer == "FAExport encounter an internal error") {
+				std::printf("\n");
+				console_print("download error! retrying...\n");
+				continue;
+			}
+
+			rapidjson::Document doc;
+			doc.Parse(buffer.c_str());
+
+			for (auto itr = doc.Begin(); itr != doc.End(); ++itr)
+			{
+				std::string jsonElm = itr->GetString();
+				int subID = std::stoi(jsonElm);
+
+				sfwIDs.push_back(subID);
+			}
+
+			
+			auto docsize = doc.Size();
+			if (docsize < 72)
+				break;
+
+			++curpage;
+		}
+
+		tempIDs.erase(std::remove_if(tempIDs.begin(), tempIDs.end(), [&](int id)
+		{
+			return std::find(sfwIDs.begin(), sfwIDs.end(), id) != sfwIDs.end();
+		}), tempIDs.end());
+	}
+
+	std::printf("Done!\n");
+
+
+	console_print("%d total images\n", tempIDs.size());
+
+	int progress = 1;
+
+	for (auto IDs : tempIDs)
 	{
 		FASubmission submission(IDs);
 
+		console_print("Downloading scrap submission data...");
+
+		int barWidth = 45;
+		std::cout << "[";
+		int pos = ((float)progress / (float)tempIDs.size()) * barWidth;
+		for (int i = 0; i < barWidth; ++i) {
+			if (i < pos) std::cout << "=";
+			else if (i == pos) std::cout << ">";
+			else std::cout << " ";
+		}
+		std::cout << "] " << int(((float)progress / (float)tempIDs.size()) * 100) << "%\r";
+		std::cout.flush();
+
+		submission.Setup(m_api);
+
+		++progress;
+
 		scraps.push_back(submission);
-
-		auto wtitle = AnsiToWstring(submission.GetSubmissionTitle());
-		auto wid = std::to_wstring(submission.GetSubmissionID());
-		auto wrating = AnsiToWstring(submission.GetRatingText());
-
-		m_listview.AddItem(wtitle, static_cast<LPARAM>(submission.GetSubmissionID()), { wid, wrating });
-
-		m_progress.Step();
-
-		m_currentIdx++;
 	}
 
-	m_isDownloading = false;
+	std::printf("\n");
 
 	return scraps;
 }
 
-__forceinline size_t write_data(void *ptr, size_t size, size_t nmemb, FILE *stream)
-{
-	return fwrite(ptr, size, nmemb, stream);
-};
-
-int CFADumper::CurlDownload(const std::string & url, const std::wstring & dir)
-{
-	FILE* fp = nullptr;
-	_wfopen_s(&fp, dir.c_str(), L"wb");
-
-	CURL* pCurl = curl_easy_init();
-
-	curl_easy_setopt(pCurl, CURLOPT_URL, url.c_str());
-	curl_easy_setopt(pCurl, CURLOPT_WRITEFUNCTION, write_data);
-	curl_easy_setopt(pCurl, CURLOPT_NOPROGRESS, TRUE);
-	curl_easy_setopt(pCurl, CURLOPT_WRITEDATA, fp);
-
-	CURLcode res = curl_easy_perform(pCurl);
-	if (res != CURLE_OK) {
-		xlog::Error("Download failed! cURL error %d: %s", res, curl_easy_strerror(res));
-	}
-
-	std::fclose(fp);
-
-	curl_easy_cleanup(pCurl);
-
-	return res;
-}
-
 int CFADumper::DownloadInternal(std::vector<FASubmission> gallery)
 {
-	m_status.SetText(1, L"Downloading images...");
+	int progress = 1;
 
-	m_totalImages = gallery.size();
-	m_currentIdx = 1;
-	m_isDownloading = true;
-
-	for (auto submission : gallery) 
+	for (auto submission : gallery)
 	{
 		auto link = submission.GetDownloadLink();
 		auto filename = link.substr(link.find_last_of("/") + 1);
 
-		std::wstring savedir = m_saveDirectory + std::wstring(L"\\") +
+		std::string id = std::to_string(submission.GetSubmissionID()); id.append("-");
+		filename.insert(0, id);
+
+		std::wstring savedir = m_savedir + std::wstring(L"\\") +
 			AnsiToWstring(filename);
 
-		if (int code = CurlDownload(link, savedir)) {
+		auto curlDownload = [&](const std::string& url, const std::wstring& path) -> CURLcode
+		{
+			FILE* fp = nullptr;
+			_wfopen_s(&fp, path.c_str(), L"wb");
 
+			CURL* pCurl = curl_easy_init();
+
+			curl_easy_setopt(pCurl, CURLOPT_URL, url.c_str());
+			curl_easy_setopt(pCurl, CURLOPT_WRITEFUNCTION, writefilecallback);
+			curl_easy_setopt(pCurl, CURLOPT_WRITEDATA, fp);
+
+			CURLcode res = curl_easy_perform(pCurl);
+
+			return std::fclose(fp), res;
+		};
+
+		console_print("Downloading submissions...");
+
+		auto truncate = [&](std::string str, size_t width) -> std::string {
+			if (str.length() > width)
+				return str.substr(0, width) + "...";
+			return str;
+		};
+
+		int barWidth = 45;
+		std::cout << "[";
+		int pos = ((float)progress / (float)gallery.size()) * barWidth;
+		for (int i = 0; i < barWidth; ++i) {
+			if (i < pos) std::cout << "=";
+			else if (i == pos) std::cout << ">";
+			else std::cout << " ";
 		}
-		m_currentIdx++;
+		std::cout << "] " << int(((float)progress / (float)gallery.size()) * 100) << "% (" << truncate(filename, 21) << ")\r";
+		std::cout.flush();
+
+		if (auto code = curlDownload(link, savedir))
+		{
+			console_print("Couldn't download submission %s!, %s, retrying...\n", filename.c_str(), curl_easy_strerror(code));
+			continue;
+		}
+
+		++progress;
 	}
 
-	m_isDownloading = false;
-
-	m_status.SetText(1, L"Idle");
+	std::printf("\n");
 
 	return 0;
 }

@@ -24,7 +24,7 @@
     <Keyword>Win32Proj</Keyword>
     <RootNamespace>fDumper</RootNamespace>
     <WindowsTargetPlatformVersion>10.0.17134.0</WindowsTargetPlatformVersion>
-    <ProjectName>FDumper</ProjectName>
+    <ProjectName>FDumper-cli</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -44,7 +44,7 @@
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
     <PlatformToolset>v141</PlatformToolset>
-    <CharacterSet>Unicode</CharacterSet>
+    <CharacterSet>MultiByte</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
@@ -104,16 +104,17 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>_DEBUG;_CONSOLE;NOMINMAX;LIBDAEMON_STATIC;CURL_STATICLIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_DEBUG;_CONSOLE;NOMINMAX;CURL_STATICLIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>$(LIBDAEMON_PATH)\src;$(LIBDAEMON_PATH);$(LIBDAEMON_PATH)\src\libda3m0n;$(SolutionDir)\contrib;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)\contrib</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <FloatingPointModel>Fast</FloatingPointModel>
+      <DisableSpecificWarnings>4244;%(DisableSpecificWarnings)</DisableSpecificWarnings>
     </ClCompile>
     <Link>
-      <SubSystem>Windows</SubSystem>
+      <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>$(LIBDAEMON_PATH)\bin\$(Platform)\$(ConfigurationName);$(SolutionDir)\contrib\curl\lib</AdditionalLibraryDirectories>
       <AdditionalDependencies>libda3m0n.lib;libcurl_a_debug.lib;%(AdditionalDependencies)</AdditionalDependencies>
@@ -146,14 +147,15 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>NDEBUG;_CONSOLE;NOMINMAX;LIBDAEMON_STATIC;CURL_STATICLIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>NDEBUG;_CONSOLE;NOMINMAX;CURL_STATICLIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>$(LIBDAEMON_PATH)\src;$(LIBDAEMON_PATH);$(LIBDAEMON_PATH)\src\libda3m0n;$(SolutionDir)\contrib;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)\contrib;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpplatest</LanguageStandard>
+      <DisableSpecificWarnings>4244;%(DisableSpecificWarnings)</DisableSpecificWarnings>
     </ClCompile>
     <Link>
-      <SubSystem>Windows</SubSystem>
+      <SubSystem>Console</SubSystem>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -163,29 +165,18 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="CBaseDumper.h" />
-    <ClInclude Include="ConfigMgr.h" />
-    <ClInclude Include="control\Button.hpp" />
-    <ClInclude Include="control\ComboBox.hpp" />
-    <ClInclude Include="control\Control.hpp" />
-    <ClInclude Include="control\Dialog.hpp" />
-    <ClInclude Include="control\EditBox.hpp" />
-    <ClInclude Include="control\ListView.hpp" />
-    <ClInclude Include="control\Message.hpp" />
-    <ClInclude Include="control\ProgressBar.hpp" />
-    <ClInclude Include="control\StatusBar.hpp" />
-    <ClInclude Include="control\Window.hpp" />
     <ClInclude Include="fADumper.h" />
-    <ClInclude Include="fDumper.h" />
+    <ClInclude Include="FASubmission.h" />
+    <ClInclude Include="FAUpdater.h" />
     <ClInclude Include="Log.h" />
-    <ClInclude Include="Menu.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="resource.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="ConfigMgr.cpp" />
+    <ClCompile Include="CBaseDumper.cpp" />
     <ClCompile Include="fADumper.cpp" />
-    <ClCompile Include="fDumper.cpp" />
-    <ClCompile Include="Menu.cpp" />
+    <ClCompile Include="FAUpdater.cpp" />
+    <ClCompile Include="main.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>

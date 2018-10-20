@@ -7,25 +7,31 @@
 #include "curl/curl.h"
 #include "rapidjson/document.h"
 
+struct arg_t
+{
+	const int c;
+	const char** v;
+	int i;
+};
+
 class CBaseDumper
 {
 public:
 	virtual ~CBaseDumper() {}
-	virtual int Download() = 0;
-};
 
-enum faRatingFlags : int
-{
-	ALL_RATINGS = 0,
-	NSFW_ONLY,
-	SFW_ONLY
-};
+	void Main(const int argc, const char* argv[]);
+	virtual void Process(arg_t& arg);
 
-enum faGalleryFlags : int
-{
-	ALL_GALLERIES = 0,
-	NO_SCRAPS,
-	SCRAPS_ONLY,
+	virtual void PrintDescription() = 0;
+
+	bool ReadArgs(arg_t& arg);
+	virtual bool Argument(arg_t& arg);
+
+	virtual void Action(arg_t& arg) = 0;
+
+public:
+	const std::wstring m_path;
+	std::string m_api;
 };
 
 static size_t writebuffercallback(void *contents, size_t size, size_t nmemb, void *userp)
@@ -52,55 +58,14 @@ static std::string WstringToAnsi(const std::wstring& input, DWORD locale = CP_AC
 	return buf;
 }
 
-struct FASubmission
+static void console_print(const char* format, ...)
 {
-	FASubmission(int submission) : submissionID(submission) {}
+	va_list args;
+	va_start(args, format);
 
-	void Setup(std::string api)
-	{
-		char urlbuff[200] = {};
+	std::printf("[FDumper] ");
+	vprintf(format, args);
 
-		sprintf_s(urlbuff, "%s/submission/%d.json", api.c_str(), submissionID);
+	va_end(args);
+}
 
-		auto curlDownload = [&](const std::string& url, std::string& buffer) -> int
-		{
-			CURL* pCurl = curl_easy_init();
-
-			curl_easy_setopt(pCurl, CURLOPT_URL, url.c_str());
-			curl_easy_setopt(pCurl, CURLOPT_WRITEFUNCTION, writebuffercallback);
-			curl_easy_setopt(pCurl, CURLOPT_WRITEDATA, buffer);
-			CURLcode code = curl_easy_perform(pCurl);
-
-			curl_easy_cleanup(pCurl);
-			return code;
-		};
-
-		std::string buffer;
-
-		rapidjson::Document doc;
-		doc.Parse(buffer.c_str());
-
-		auto fullimage = doc.FindMember("download");
-		downloadURL = fullimage->value.GetString();
-
-		auto imagetitle = doc.FindMember("title");
-		title = imagetitle->value.GetString();
-
-		auto imagerating = doc.FindMember("rating");
-		imagerating->value.GetString() == std::string("General") ? rating = 1 : rating = 2;
-		ratingstr = imagerating->value.GetString();
-	}
-
-	inline std::string GetDownloadLink() { return downloadURL; }
-	inline int GetSubmissionID() { return submissionID; }
-	inline std::string GetSubmissionTitle() { return title; }
-	inline int GetRating() { return rating; }
-	inline std::string GetRatingText() { return ratingstr; }
-
-private:
-	std::string downloadURL;
-	std::string title;
-	std::string ratingstr;
-	int rating;
-	int submissionID;
-};

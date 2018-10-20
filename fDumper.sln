@@ -3,12 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
 VisualStudioVersion = 15.0.28010.2003
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "FDumper", "FDumper\fDumper.vcxproj", "{FEE080AB-DB96-4E7C-9971-A2BBC21F4B13}"
-EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "FWatcher", "FWatcher\FWatcher.vcxproj", "{876C0F4F-C368-42B0-902A-49A70606F175}"
-	ProjectSection(ProjectDependencies) = postProject
-		{FEE080AB-DB96-4E7C-9971-A2BBC21F4B13} = {FEE080AB-DB96-4E7C-9971-A2BBC21F4B13}
-	EndProjectSection
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "FDumper-cli", "FDumper\fDumper.vcxproj", "{FEE080AB-DB96-4E7C-9971-A2BBC21F4B13}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -26,14 +21,6 @@ Global
 		{FEE080AB-DB96-4E7C-9971-A2BBC21F4B13}.Release|x64.Build.0 = Release|x64
 		{FEE080AB-DB96-4E7C-9971-A2BBC21F4B13}.Release|x86.ActiveCfg = Release|Win32
 		{FEE080AB-DB96-4E7C-9971-A2BBC21F4B13}.Release|x86.Build.0 = Release|Win32
-		{876C0F4F-C368-42B0-902A-49A70606F175}.Debug|x64.ActiveCfg = Debug|x64
-		{876C0F4F-C368-42B0-902A-49A70606F175}.Debug|x64.Build.0 = Debug|x64
-		{876C0F4F-C368-42B0-902A-49A70606F175}.Debug|x86.ActiveCfg = Debug|Win32
-		{876C0F4F-C368-42B0-902A-49A70606F175}.Debug|x86.Build.0 = Debug|Win32
-		{876C0F4F-C368-42B0-902A-49A70606F175}.Release|x64.ActiveCfg = Release|x64
-		{876C0F4F-C368-42B0-902A-49A70606F175}.Release|x64.Build.0 = Release|x64
-		{876C0F4F-C368-42B0-902A-49A70606F175}.Release|x86.ActiveCfg = Release|Win32
-		{876C0F4F-C368-42B0-902A-49A70606F175}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
