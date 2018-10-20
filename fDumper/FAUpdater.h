@@ -19,7 +19,7 @@ private:
 	std::vector<int> GetUserMainGalleryPages(std::string user, int rating);
 	std::vector<int> GetUserScrapGalleryPages(std::string user, int rating);
 
-	int DownloadInternal(std::vector<FASubmission> gallery);
+	int DownloadInternal(std::vector<FASubmission> gallery, std::wstring folder);
 
 private:
 	bool m_allusers = false;

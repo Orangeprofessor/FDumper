@@ -19,7 +19,7 @@ supported flags:
 * `--scraps-only`(`-scraps`) Only dump images from the scraps folder.
 * `--no-scraps`(`-noscraps`) Only dump images from the main gallery.
 
-### Gallery maintainer
+### Gallery maintainer (still in progress)
 
 Updates images in dumped gallery
 

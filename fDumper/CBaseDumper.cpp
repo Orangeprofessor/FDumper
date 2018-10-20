@@ -105,7 +105,7 @@ bool CBaseDumper::Argument(arg_t& arg)
 	{
 		++arg.i;
 		m_api = arg.v[arg.i];
-		return ++arg.i < arg.c;
+		return true;
 	}
 	return false;
 }
