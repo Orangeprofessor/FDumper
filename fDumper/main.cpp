@@ -17,6 +17,13 @@ void DestroyCmdLine()
 void mainDump(const int argc, const char* argv[]);
 void mainUpdate(const int argc, const char* argv[]);
 
+void prtdesc()
+{
+	console_print("FDumper-cli v1 by Orangeprofessor!\n");
+	console_print("Usage: FDumper-cli.exe <mode> [args]\n");
+	console_print("See fdumper.txt for more details\n");
+}
+
 int main(const int argc, const char* argv[])
 {
 	DestroyCmdLine();
@@ -30,9 +37,7 @@ int main(const int argc, const char* argv[])
 
 	if (argc < 2)
 	{
-		console_print("FDumper-cli v1 by Orangeprofessor!\n");
-		console_print("Usage: FDumper-cli.exe <mode> [args]\n");
-		console_print("See fdumper.txt for more details\n");
+		prtdesc();
 		return 0;
 	}
 
@@ -48,8 +53,16 @@ int main(const int argc, const char* argv[])
 	{
 		mainUpdate(argc, argv);
 	}
+	else
+	{
+		prtdesc();
+	}
 
 	curl_global_cleanup();
+
+	GetConsoleCursorInfo(out, &cursorInfo);
+	cursorInfo.bVisible = true;
+	SetConsoleCursorInfo(out, &cursorInfo);
 
 	return 0;
 }

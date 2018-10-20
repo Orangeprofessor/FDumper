@@ -26,14 +26,10 @@ bool CFAUpdater::Argument(arg_t & arg)
 
 	if (!s.compare("--all-users") || !s.compare("-A"))
 	{
-		++arg.i;
 		m_allusers = true;
-		return true;
+		return ++arg.i <= arg.c;
 	}
-	else
-	{
-		return BaseClass::Argument(arg);
-	}
+	return BaseClass::Argument(arg);
 }
 
 void CFAUpdater::Action(arg_t & arg)
@@ -47,7 +43,6 @@ void CFAUpdater::Action(arg_t & arg)
 		for (; arg.i < arg.c; ++arg.i)
 		{
 			std::string name = arg.v[arg.i];
-			
 
 			if (Update(name)) {
 				console_print("Couldn't update gallery for '%s'", name.c_str());
@@ -149,8 +144,9 @@ int CFAUpdater::Update(std::string name)
 		}
 		std::printf("\n");
 
-		DownloadInternal(subvec, (dir + L"\\" + std::wstring(L"Scraps")));
+		DownloadInternal(subvec, dir);
 
+		console_print("Finised processing gallery '%s'\n", name.c_str());
 		return 0;
 	}
 
@@ -293,11 +289,11 @@ int CFAUpdater::Update(std::string name)
 		}
 		std::printf("\n");
 
-		DownloadInternal(subvec, (dir + L"\\" + std::wstring(L"Scraps")));
+		DownloadInternal(subvec, dir);
 	}
 
+	console_print("Finised processing gallery '%s'\n", name.c_str());
 	return 0;
-
 }
 
 int CFAUpdater::UpdateAll()
@@ -385,7 +381,7 @@ std::vector<int> CFAUpdater::GetUserMainGalleryPages(std::string user, int ratin
 	}
 	std::printf("Done!\n");
 
-	if (rating == NSFW_ONLY) 
+	if (rating == NSFW_ONLY)
 	{
 		curpage = 1;
 		std::vector<int> sfwIDs;
@@ -428,7 +424,7 @@ std::vector<int> CFAUpdater::GetUserMainGalleryPages(std::string user, int ratin
 
 
 
-		gallery.erase(std::remove_if(gallery.begin(), gallery.end(), [&](int sub) 
+		gallery.erase(std::remove_if(gallery.begin(), gallery.end(), [&](int sub)
 		{
 			return std::find(sfwIDs.begin(), sfwIDs.end(), sub) != sfwIDs.end();
 		}), gallery.end());
@@ -493,7 +489,7 @@ std::vector<int> CFAUpdater::GetUserScrapGalleryPages(std::string user, int rati
 	}
 	std::printf("Done!\n");
 
-	if (rating == NSFW_ONLY) 
+	if (rating == NSFW_ONLY)
 	{
 		curpage = 1;
 		std::vector<int> sfwIDs;

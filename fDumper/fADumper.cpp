@@ -31,22 +31,22 @@ bool CFADumper::Argument(arg_t & arg)
 	if (!s.compare("--sfw-only") || !s.compare("-sfw"))
 	{
 		m_rating = SFW_ONLY;
-		return ++arg.i < arg.c;
+		return ++arg.i <= arg.c;
 	}
 	else if (!s.compare("--nsfw-only") || !s.compare("-nsfw"))
 	{
 		m_rating = NSFW_ONLY;
-		return ++arg.i < arg.c;
+		return ++arg.i <= arg.c;
 	}
 	else if (!s.compare("--scraps-only") || !s.compare("-scraps"))
 	{
 		m_gallery = SCRAPS_ONLY;
-		return ++arg.i < arg.c;
+		return ++arg.i <= arg.c;
 	}
 	else if (!s.compare("--no-scraps") || !s.compare("-noscraps"))
 	{
 		m_gallery = NO_SCRAPS;
-		return ++arg.i < arg.c;
+		return ++arg.i <= arg.c;
 	}
 	else
 	{
@@ -78,6 +78,8 @@ void CFADumper::Action(arg_t & arg)
 		ofs.close();
 
 		Download();
+
+		console_print("Finished processing user gallery '%s'\n", m_uHandle.c_str());
 	}
 }
 
@@ -87,6 +89,7 @@ int CFADumper::Download()
 	CreateDirectoryW(m_savedir.c_str(), NULL);
 
 	console_print("Processing user gallery '%s'\n", m_uHandle.c_str());
+	console_print("Dumping gallery '%s' to '%s'\n", m_uHandle.c_str(), WstringToAnsi(m_savedir).c_str());
 
 	if (m_gallery == faGalleryFlags::SCRAPS_ONLY)
 	{
@@ -115,6 +118,8 @@ int CFADumper::Download()
 
 		DownloadInternal(scrapgallery);
 	}
+
+
 
 	return 0;
 }

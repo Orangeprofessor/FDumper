@@ -105,6 +105,11 @@ bool CBaseDumper::Argument(arg_t& arg)
 	{
 		++arg.i;
 		m_api = arg.v[arg.i];
+		return ++arg.i <= arg.c;
+	}
+	else if (!s.compare("--testcase"))
+	{
+		++arg.i;
 		return true;
 	}
 	return false;
