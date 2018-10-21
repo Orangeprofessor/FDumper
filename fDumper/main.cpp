@@ -2,6 +2,9 @@
 
 #include "curl/curl.h"
 #include "fADumper.h"
+#include "dumphandler.h"
+
+#include <winternl.h>
 
 void DestroyCmdLine()
 {
@@ -14,6 +17,15 @@ void DestroyCmdLine()
 	}
 }
 
+int DumpNotifier(const wchar_t* path, void* context, EXCEPTION_POINTERS* expt, bool success)
+{
+	std::wstring errmsg = L"Oopsie woopsie a widdle fuckie wuckie! Dump file saved at '" + std::wstring(path) + L"'";
+	std::wstring title = L"Ohhhhhhhhhhhhh Nooooooooo";
+	MessageBoxW(GetActiveWindow(), errmsg.c_str(), title.c_str(), MB_OK | MB_ICONERROR);
+	return 0;
+}
+
+
 void mainDump(const int argc, const char* argv[]);
 void mainUpdate(const int argc, const char* argv[]);
 
@@ -24,9 +36,34 @@ void prtdesc()
 	console_print("See fdumper.txt for more details\n");
 }
 
+void loginfo()
+{
+	uintptr_t peb = (uintptr_t)NtCurrentTeb()->ProcessEnvironmentBlock;
+
+	int majorver = *reinterpret_cast<int*>(peb + 0x118);
+	int minorver = *reinterpret_cast<int*>(peb + 0x11c);
+	int oscsd = *reinterpret_cast<int*>(peb + 0x122);
+	int buildno = *reinterpret_cast<int*>(peb + 0x120);
+
+	xlog::Normal(
+		"Started on Windows %d.%d.%d.%d",
+		majorver,
+		minorver,
+		(oscsd >> 8) & 0xFF,
+		buildno
+	);
+}
+
 int main(const int argc, const char* argv[])
 {
+	loginfo();
+
 	DestroyCmdLine();
+
+	wchar_t exepath[MAX_PATH] = {};
+	GetModuleFileNameW(NULL, exepath, MAX_PATH);
+
+	dump::DumpHandler::Instance().CreateWatchdog(exepath, dump::CreateFullDump, &DumpNotifier);
 
 	HANDLE out = GetStdHandle(STD_OUTPUT_HANDLE);
 

@@ -158,13 +158,13 @@ std::vector<FASubmission> CFADumper::GetMainGallery()
 
 		if (CURLcode err = curlDownload(urlbuff, buffer))
 		{
-			console_print("Couldn't download page %d!, %s, retrying...\n", curpage, curl_easy_strerror(err));
+			console_error("Couldn't download page %d!, %s, retrying...\n", curpage, curl_easy_strerror(err));
 			continue;
 		}
 
 		if (buffer == "FAExport encounter an internal error") {
 			std::printf("\n");
-			console_print("download error! retrying...\n");
+			console_error("download error! retrying...\n");
 			continue;
 		}
 
@@ -200,13 +200,13 @@ std::vector<FASubmission> CFADumper::GetMainGallery()
 
 			if (CURLcode err = curlDownload(urlbuff, buffer))
 			{
-				console_print("Couldn't download page %d!, %s, retrying...\n", curpage, curl_easy_strerror(err));
+				console_error("Couldn't download page %d!, %s, retrying...\n", curpage, curl_easy_strerror(err));
 				continue;
 			}
 
 			if (buffer == "FAExport encounter an internal error") {
 				std::printf("\n");
-				console_print("download error! retrying...\n");
+				console_error("download error! retrying...\n");
 				continue;
 			}
 
@@ -303,13 +303,13 @@ std::vector<FASubmission> CFADumper::GetScrapGallery()
 
 		if (CURLcode err = curlDownload(urlbuff, buffer))
 		{
-			console_print("Couldn't download page %d!, %s, retrying...", curpage, curl_easy_strerror(err));
+			console_error("Couldn't download page %d!, %s, retrying...", curpage, curl_easy_strerror(err));
 			continue;
 		}
 
 		if (buffer == "FAExport encounter an internal error") {
 			std::printf("\n");
-			console_print("download error! retrying...\n");
+			console_error("download error! retrying...\n");
 			continue;
 		}
 
@@ -347,13 +347,13 @@ std::vector<FASubmission> CFADumper::GetScrapGallery()
 
 			if (CURLcode err = curlDownload(urlbuff, buffer))
 			{
-				console_print("Couldn't download page %d!, %s, retrying...\n", curpage, curl_easy_strerror(err));
+				console_error("Couldn't download page %d!, %s, retrying...\n", curpage, curl_easy_strerror(err));
 				continue;
 			}
 
 			if (buffer == "FAExport encounter an internal error") {
 				std::printf("\n");
-				console_print("download error! retrying...\n");
+				console_error("download error! retrying...\n");
 				continue;
 			}
 
@@ -470,7 +470,7 @@ int CFADumper::DownloadInternal(std::vector<FASubmission> gallery)
 
 		if (auto code = curlDownload(link, savedir))
 		{
-			console_print("Couldn't download submission %s!, %s, retrying...\n", filename.c_str(), curl_easy_strerror(code));
+			console_error("Couldn't download submission %s!, %s, retrying...\n", filename.c_str(), curl_easy_strerror(code));
 			continue;
 		}
 

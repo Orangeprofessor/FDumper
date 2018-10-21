@@ -36,6 +36,9 @@
     <ClInclude Include="FAUpdater.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="dumphandler.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -51,6 +54,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="FAUpdater.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="dumphandler.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

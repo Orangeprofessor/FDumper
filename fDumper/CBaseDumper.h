@@ -62,10 +62,28 @@ static void console_print(const char* format, ...)
 {
 	va_list args;
 	va_start(args, format);
+	char buff[1024] = {};
+	vsprintf_s(buff, format, args);
+	va_end(args);
+
+	xlog::Verbose(buff);
 
 	std::printf("[FDumper] ");
-	vprintf(format, args);
-
-	va_end(args);
+	std::printf(buff);
 }
 
+static void console_error(const char* format, ...)
+{
+	va_list args;
+	va_start(args, format);
+	char buff[1024] = {};
+	vsprintf_s(buff, format, args);
+	va_end(args);
+
+	xlog::Error(buff);
+
+	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), 4);
+	std::printf("[FDumper] ");
+	std::printf(buff);
+	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), 15);
+}

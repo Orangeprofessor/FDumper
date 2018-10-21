@@ -45,7 +45,7 @@ void CFAUpdater::Action(arg_t & arg)
 			std::string name = arg.v[arg.i];
 
 			if (Update(name)) {
-				console_print("Couldn't update gallery for '%s'", name.c_str());
+				console_error("Couldn't update gallery for '%s'", name.c_str());
 			}
 		}
 	}
@@ -60,7 +60,7 @@ int CFAUpdater::Update(std::string name)
 	std::ifstream is(dir + L"\\" + std::wstring(L"config.json"));
 	if (!is.good())
 	{
-		console_print("Config not found for %s!\n", name.c_str());
+		console_error("Config not found for %s!\n", name.c_str());
 		return -1;
 	}
 
@@ -360,7 +360,7 @@ std::vector<int> CFAUpdater::GetUserMainGalleryPages(std::string user, int ratin
 
 		if (CURLcode err = curlDownload(urlbuff, buffer))
 		{
-			console_print("Couldn't download page %d!, %s, retrying...\n", curpage, curl_easy_strerror(err));
+			console_error("Couldn't download page %d!, %s, retrying...\n", curpage, curl_easy_strerror(err));
 			continue;
 		}
 
@@ -395,13 +395,13 @@ std::vector<int> CFAUpdater::GetUserMainGalleryPages(std::string user, int ratin
 
 			if (CURLcode err = curlDownload(urlbuff, buffer))
 			{
-				console_print("Couldn't download page %d!, %s, retrying...\n", curpage, curl_easy_strerror(err));
+				console_error("Couldn't download page %d!, %s, retrying...\n", curpage, curl_easy_strerror(err));
 				continue;
 			}
 
 			if (buffer == "FAExport encounter an internal error") {
 				std::printf("\n");
-				console_print("download error! retrying...\n");
+				console_error("download error! retrying...\n");
 				continue;
 			}
 
@@ -468,7 +468,7 @@ std::vector<int> CFAUpdater::GetUserScrapGalleryPages(std::string user, int rati
 
 		if (CURLcode err = curlDownload(urlbuff, buffer))
 		{
-			console_print("Couldn't download page %d!, %s, retrying...\n", curpage, curl_easy_strerror(err));
+			console_error("Couldn't download page %d!, %s, retrying...\n", curpage, curl_easy_strerror(err));
 			continue;
 		}
 
@@ -503,13 +503,13 @@ std::vector<int> CFAUpdater::GetUserScrapGalleryPages(std::string user, int rati
 
 			if (CURLcode err = curlDownload(urlbuff, buffer))
 			{
-				console_print("Couldn't download page %d!, %s, retrying...\n", curpage, curl_easy_strerror(err));
+				console_error("Couldn't download page %d!, %s, retrying...\n", curpage, curl_easy_strerror(err));
 				continue;
 			}
 
 			if (buffer == "FAExport encounter an internal error") {
 				std::printf("\n");
-				console_print("download error! retrying...\n");
+				console_error("download error! retrying...\n");
 				continue;
 			}
 
@@ -600,7 +600,7 @@ int CFAUpdater::DownloadInternal(std::vector<FASubmission> gallery, std::wstring
 
 		if (auto code = curlDownload(link, savedir))
 		{
-			console_print("Couldn't download submission %s!, %s, retrying...\n", filename.c_str(), curl_easy_strerror(code));
+			console_error("Couldn't download submission %s!, %s, retrying...\n", filename.c_str(), curl_easy_strerror(code));
 			continue;
 		}
 

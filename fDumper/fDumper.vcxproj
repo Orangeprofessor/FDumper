@@ -112,12 +112,13 @@
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <FloatingPointModel>Fast</FloatingPointModel>
       <DisableSpecificWarnings>4244;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <ExceptionHandling>Sync</ExceptionHandling>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>$(LIBDAEMON_PATH)\bin\$(Platform)\$(ConfigurationName);$(SolutionDir)\contrib\curl\lib</AdditionalLibraryDirectories>
-      <AdditionalDependencies>libda3m0n.lib;libcurl_a_debug.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>libda3m0n.lib;libcurl_a_debug.lib;dbghelp.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -153,6 +154,7 @@
       <AdditionalIncludeDirectories>$(SolutionDir)\contrib;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <DisableSpecificWarnings>4244;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <ExceptionHandling>Async</ExceptionHandling>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -160,11 +162,12 @@
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>$(LIBDAEMON_PATH)\bin\$(Platform)\$(ConfigurationName);$(SolutionDir)\contrib\curl\lib</AdditionalLibraryDirectories>
-      <AdditionalDependencies>libcurl_a.lib;libda3m0n.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>libcurl_a.lib;libda3m0n.lib;dbghelp.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="CBaseDumper.h" />
+    <ClInclude Include="dumphandler.h" />
     <ClInclude Include="fADumper.h" />
     <ClInclude Include="FASubmission.h" />
     <ClInclude Include="FAUpdater.h" />
@@ -174,6 +177,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="CBaseDumper.cpp" />
+    <ClCompile Include="dumphandler.cpp" />
     <ClCompile Include="fADumper.cpp" />
     <ClCompile Include="FAUpdater.cpp" />
     <ClCompile Include="main.cpp" />

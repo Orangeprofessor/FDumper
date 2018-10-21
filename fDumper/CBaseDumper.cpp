@@ -16,7 +16,7 @@ void CBaseDumper::Main(const int argc, const char* argv[])
 	arg_t arg = { argc, argv, 2 };
 	if (!ReadArgs(arg))
 	{
-		console_print("Invalid arguments!\n");
+		console_error("Invalid arguments!\n");
 		PrintDescription();
 		return;
 	}
@@ -29,7 +29,7 @@ void CBaseDumper::Main(const int argc, const char* argv[])
 
 	if (!validurl)
 	{
-		console_print("Invalid API address: %s!", m_api.c_str());
+		console_error("Invalid API address: %s!", m_api.c_str());
 		return;
 	}
 
@@ -46,7 +46,7 @@ void CBaseDumper::Main(const int argc, const char* argv[])
 	curl_easy_cleanup(pCurl);
 
 	if (res != CURLE_OK) {
-		console_print("Connection error! %s, aborting...", err.c_str());
+		console_error("Connection error! %s, aborting...", err.c_str());
 		return;
 	}
 
@@ -91,7 +91,7 @@ bool CBaseDumper::ReadArgs(arg_t& arg)
 	{
 		if (!Argument(arg))
 		{
-			console_print("Unkown argument %s!\n", arg.v[arg.i]);
+			console_error("Unkown argument %s!\n", arg.v[arg.i]);
 			return false;
 		}
 	}
