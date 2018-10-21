@@ -146,7 +146,7 @@ int CFAUpdater::Update(std::string name)
 
 		DownloadInternal(subvec, dir);
 
-		console_print("Finised processing gallery '%s'\n", name.c_str());
+		console_print("Finished processing gallery '%s'\n", name.c_str());
 		return 0;
 	}
 
@@ -292,7 +292,7 @@ int CFAUpdater::Update(std::string name)
 		DownloadInternal(subvec, dir);
 	}
 
-	console_print("Finised processing gallery '%s'\n", name.c_str());
+	console_print("Finished processing gallery '%s'\n", name.c_str());
 	return 0;
 }
 

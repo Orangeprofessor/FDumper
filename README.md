@@ -19,6 +19,8 @@ supported flags:
 * `--scraps-only`(`-scraps`) Only dump images from the scraps folder.
 * `--no-scraps`(`-noscraps`) Only dump images from the main gallery.
 
+Specifying no content filtering flags will dump all submissions
+
 ### Gallery maintainer 
 
 Updates images in dumped gallery
@@ -39,11 +41,12 @@ supported flags:
  
 Example commands:
 ~~~text
-cd C:\Users\Orangeprofessor\Downloads
-FDumper-cli.exe dump -sfw -scraps strange-fox
-(a dialog box will appear after the above command was issued)
-(after a folder is selected, the program will start downloading the gallery)
+> cd C:\Users\Orangeprofessor\Downloads
+> FDumper-cli.exe dump -sfw -scraps strange-fox
 ~~~
+
+a dialog box will appear after the above command was issued
+after a folder is selected, the program will start downloading the gallery
 
 Example output:
 ~~~text
@@ -64,6 +67,19 @@ Example output:
 * Use the 'update' mode, a dialog box will appear asking for a folder, choose the folder containing the folder of the dumped gallery 
 * Patiently wait while FDumper-cli downloads your furry art
 
+Example commands:
+~~~text
+> cd C:\Users\Orangeprofessor\Downloads
+> FDumper-cli.exe update strange-fox
+~~~
+
+a dialog box will appear after the above command was issued
+select the folder containing the folder of the dumped gallery, for example:
+~~~text
+select this --> C:\Users\Orangeprofessor\Desktop\CoolArtists\
+not this --> C:\Users\Orangeprofessor\Desktop\CoolArtists\strange-fox
+~~~
+
 Example output:
 ~~~text
 (This is in the same context as above, so I selected the 'CoolArtists' folder)
@@ -75,7 +91,6 @@ Example output:
 [FDumper] 3 submission(s) not found!
 [FDumper] Downloading new scrap submission data...[=============================================] 100%
 [FDumper] Downloading new submissions...[=============================================] 100% (7411290-1329367100.st...)
-[FDumper] Finised processing gallery 'strange-fox'
+[FDumper] Finished processing gallery 'strange-fox'
 ~~~
-
 
