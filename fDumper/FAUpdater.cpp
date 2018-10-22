@@ -5,7 +5,7 @@
 
 #include <filesystem>
 
-#include "rapidjson/istreamwrapper.h"
+#include "../contrib/rapidjson/istreamwrapper.h"
 
 void mainUpdate(const int argc, const char* argv[])
 {
@@ -45,7 +45,7 @@ void CFAUpdater::Action(arg_t & arg)
 			std::string name = arg.v[arg.i];
 
 			if (Update(name)) {
-				console_error("Couldn't update gallery for '%s'", name.c_str());
+				console_error("Couldn't update gallery for '%s'\n", name.c_str());
 			}
 		}
 	}
@@ -118,35 +118,39 @@ int CFAUpdater::Update(std::string name)
 
 		console_print("%d submission(s) not found!\n", scraps.size());
 
-		std::vector<FASubmission> subvec; int progress = 1;
-		for (auto id : scraps)
+		if (!scraps.empty())
 		{
-			FASubmission sub(id);
+			std::vector<FASubmission> subvec; int progress = 1;
+			for (auto id : scraps)
+			{
+				FASubmission sub(id);
 
-			console_print("Downloading new scrap submission data...");
+				console_print("Downloading new scrap submission data...");
 
-			int barWidth = 45;
-			std::cout << "[";
-			int pos = ((float)progress / (float)scraps.size()) * barWidth;
-			for (int i = 0; i < barWidth; ++i) {
-				if (i < pos) std::cout << "=";
-				else if (i == pos) std::cout << ">";
-				else std::cout << " ";
+				int barWidth = 45;
+				std::cout << "[";
+				int pos = ((float)progress / (float)scraps.size()) * barWidth;
+				for (int i = 0; i < barWidth; ++i) {
+					if (i < pos) std::cout << "=";
+					else if (i == pos) std::cout << ">";
+					else std::cout << " ";
+				}
+				std::cout << "] " << int(((float)progress / (float)scraps.size()) * 100) << "%\r";
+				std::cout.flush();
+
+				sub.Setup(m_api);
+
+				++progress;
+
+				subvec.push_back(sub);
 			}
-			std::cout << "] " << int(((float)progress / (float)scraps.size()) * 100) << "%\r";
-			std::cout.flush();
+			std::printf("\n");
 
-			sub.Setup(m_api);
-
-			++progress;
-
-			subvec.push_back(sub);
+			DownloadInternal(subvec, dir);
 		}
-		std::printf("\n");
-
-		DownloadInternal(subvec, dir);
 
 		console_print("Finished processing gallery '%s'\n", name.c_str());
+		console_print("======================================\n");
 		return 0;
 	}
 
@@ -189,33 +193,36 @@ int CFAUpdater::Update(std::string name)
 
 		console_print("%d submission(s) not found!\n", maingallery.size());
 
-		std::vector<FASubmission> subvec; int progress = 1;
-		for (auto id : maingallery)
+		if (!maingallery.empty())
 		{
-			FASubmission sub(id);
+			std::vector<FASubmission> subvec; int progress = 1;
+			for (auto id : maingallery)
+			{
+				FASubmission sub(id);
 
-			console_print("Downloading new submission data...");
+				console_print("Downloading new submission data...");
 
-			int barWidth = 45;
-			std::cout << "[";
-			int pos = ((float)progress / (float)maingallery.size()) * barWidth;
-			for (int i = 0; i < barWidth; ++i) {
-				if (i < pos) std::cout << "=";
-				else if (i == pos) std::cout << ">";
-				else std::cout << " ";
+				int barWidth = 45;
+				std::cout << "[";
+				int pos = ((float)progress / (float)maingallery.size()) * barWidth;
+				for (int i = 0; i < barWidth; ++i) {
+					if (i < pos) std::cout << "=";
+					else if (i == pos) std::cout << ">";
+					else std::cout << " ";
+				}
+				std::cout << "] " << int(((float)progress / (float)maingallery.size()) * 100) << "%\r";
+				std::cout.flush();
+
+				sub.Setup(m_api);
+
+				++progress;
+
+				subvec.push_back(sub);
 			}
-			std::cout << "] " << int(((float)progress / (float)maingallery.size()) * 100) << "%\r";
-			std::cout.flush();
+			std::printf("\n");
 
-			sub.Setup(m_api);
-
-			++progress;
-
-			subvec.push_back(sub);
+			DownloadInternal(subvec, dir);
 		}
-		std::printf("\n");
-
-		DownloadInternal(subvec, dir);
 	}
 
 
@@ -263,36 +270,40 @@ int CFAUpdater::Update(std::string name)
 
 		console_print("%d submission(s) not found!\n", scraps.size());
 
-		std::vector<FASubmission> subvec; int progress = 1;
-		for (auto id : scraps)
+		if (!scraps.empty())
 		{
-			FASubmission sub(id);
+			std::vector<FASubmission> subvec; int progress = 1;
+			for (auto id : scraps)
+			{
+				FASubmission sub(id);
 
-			console_print("Downloading new scrap submission data...");
+				console_print("Downloading new scrap submission data...");
 
-			int barWidth = 45;
-			std::cout << "[";
-			int pos = ((float)progress / (float)scraps.size()) * barWidth;
-			for (int i = 0; i < barWidth; ++i) {
-				if (i < pos) std::cout << "=";
-				else if (i == pos) std::cout << ">";
-				else std::cout << " ";
+				int barWidth = 45;
+				std::cout << "[";
+				int pos = ((float)progress / (float)scraps.size()) * barWidth;
+				for (int i = 0; i < barWidth; ++i) {
+					if (i < pos) std::cout << "=";
+					else if (i == pos) std::cout << ">";
+					else std::cout << " ";
+				}
+				std::cout << "] " << int(((float)progress / (float)scraps.size()) * 100) << "%\r";
+				std::cout.flush();
+
+				sub.Setup(m_api);
+
+				++progress;
+
+				subvec.push_back(sub);
 			}
-			std::cout << "] " << int(((float)progress / (float)scraps.size()) * 100) << "%\r";
-			std::cout.flush();
+			std::printf("\n");
 
-			sub.Setup(m_api);
-
-			++progress;
-
-			subvec.push_back(sub);
+			DownloadInternal(subvec, dir);
 		}
-		std::printf("\n");
-
-		DownloadInternal(subvec, dir);
 	}
 
 	console_print("Finished processing gallery '%s'\n", name.c_str());
+	console_print("======================================\n");
 	return 0;
 }
 

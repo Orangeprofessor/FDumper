@@ -1,10 +1,10 @@
 #pragma once
 
 #include "CBaseDumper.h"
-#include "curl/curl.h"
+#include "../contrib/curl/curl.h"
 
-#include "rapidjson/istreamwrapper.h"
-#include "rapidjson/document.h"
+#include "../contrib/rapidjson/istreamwrapper.h"
+#include "../contrib/rapidjson/document.h"
 
 
 struct FASubmission;

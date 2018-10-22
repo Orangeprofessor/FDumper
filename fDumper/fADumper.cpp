@@ -2,8 +2,8 @@
 
 #include "FASubmission.h"
 
-#include "rapidjson/ostreamwrapper.h"
-#include "rapidjson/writer.h"
+#include "../contrib/rapidjson/ostreamwrapper.h"
+#include "../contrib/rapidjson/writer.h"
 
 #include "fADumper.h"
 #include "Log.h"

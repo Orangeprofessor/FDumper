@@ -1,11 +1,12 @@
 #pragma once
 
 #include "pch.h"
+#include "config.h"
 
 #include "Log.h"
 
-#include "curl/curl.h"
-#include "rapidjson/document.h"
+#include "../contrib/curl/curl.h"
+#include "../contrib/rapidjson/document.h"
 
 struct arg_t
 {
