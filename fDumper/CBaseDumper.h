@@ -33,6 +33,7 @@ public:
 public:
 	const std::wstring m_path;
 	std::string m_api;
+	bool m_shouldparse;
 };
 
 static size_t writebuffercallback(void *contents, size_t size, size_t nmemb, void *userp)

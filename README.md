@@ -4,13 +4,18 @@
 
 ### Questions or problems? Contact me on twitter: https://twitter.com/Orangeprofessor
 
+Base flags:
+* `--users` Specifies what users to process. You MUST include this flag! It also MUST be the LAST flag included!
+* `--api-address`(-API`) Web address for the server running FAExport (faexport.boothale.net by default, most users can ignore this flag)
+
+
 ## Main modes
 
 ### Gallery dumper
 
 Dumps full gallery to disk
 
-	FDumper-cli.exe dump [flags] [user 1] [user 2]...
+	FDumper-cli.exe dump [flags] --users [user 1] [user 2]...
 
 supported flags:
 
@@ -25,7 +30,7 @@ Specifying no content filtering flags will dump all submissions
 
 Updates images in dumped gallery
 
-	FDumper-cli.exe update [flags] [user 1] [user 2]...
+	FDumper-cli.exe update [flags] --users [user 1] [user 2]...
 	
 supported flags:
 
@@ -42,7 +47,7 @@ supported flags:
 Example commands:
 ~~~text
 > cd C:\Users\Orangeprofessor\Downloads
-> FDumper-cli.exe dump -sfw -scraps strange-fox
+> FDumper-cli.exe dump -sfw -scraps --users strange-fox
 ~~~
 
 a dialog box will appear after the above command was issued
@@ -70,7 +75,7 @@ Example output:
 Example commands:
 ~~~text
 > cd C:\Users\Orangeprofessor\Downloads
-> FDumper-cli.exe update strange-fox
+> FDumper-cli.exe update --users strange-fox
 ~~~
 
 a dialog box will appear after the above command was issued

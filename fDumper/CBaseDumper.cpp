@@ -86,12 +86,14 @@ void CBaseDumper::PrintDescription()
 bool CBaseDumper::ReadArgs(arg_t& arg)
 {
 	m_api = "http://faexport.boothale.net";
+	m_shouldparse = true;
 
-	while (arg.i < arg.c && *(arg.v[arg.i]) == '-')
+	while (arg.i < arg.c && *(arg.v[arg.i]) == '-' && m_shouldparse)
 	{
 		if (!Argument(arg))
 		{
 			console_error("Unkown argument %s!\n", arg.v[arg.i]);
+			console_error("Did you forget to add --users?\n");
 			return false;
 		}
 	}
@@ -107,9 +109,10 @@ bool CBaseDumper::Argument(arg_t& arg)
 		m_api = arg.v[arg.i];
 		return ++arg.i <= arg.c;
 	}
-	else if (!s.compare("--testcase"))
+	else if (!s.compare("--users"))
 	{
 		++arg.i;
+		m_shouldparse = false;
 		return true;
 	}
 	return false;
