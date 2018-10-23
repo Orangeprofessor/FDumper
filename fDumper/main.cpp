@@ -33,7 +33,7 @@ void mainUpdate(const int argc, const char* argv[]);
 
 void prtdesc()
 {
-	console_print("FDumper-cli v1.0.1 by Orangeprofessor!\n");
+	console_print("FDumper-cli v1.0.2 by Orangeprofessor!\n");
 	console_print("Usage: FDumper-cli.exe <mode> [args]\n");
 	console_print("See fdumper.txt for more details\n");
 }
