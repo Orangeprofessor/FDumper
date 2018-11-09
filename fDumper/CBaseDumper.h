@@ -8,10 +8,11 @@
 #include "../contrib/curl/curl.h"
 #include "../contrib/rapidjson/document.h"
 
+
 struct arg_t
 {
 	const int c;
-	const char** v;
+	wchar_t** v;
 	int i;
 };
 
@@ -20,7 +21,7 @@ class CBaseDumper
 public:
 	virtual ~CBaseDumper() {}
 
-	void Main(const int argc, const char* argv[]);
+	void Main(const int argc, wchar_t* argv[]);
 	virtual void Process(arg_t& arg);
 
 	virtual void PrintDescription() = 0;
@@ -33,7 +34,6 @@ public:
 public:
 	const std::wstring m_path;
 	std::string m_api;
-	bool m_shouldparse;
 };
 
 static size_t writebuffercallback(void *contents, size_t size, size_t nmemb, void *userp)
@@ -60,32 +60,23 @@ static std::string WstringToAnsi(const std::wstring& input, DWORD locale = CP_AC
 	return buf;
 }
 
-static void console_print(const char* format, ...)
+static void log_console(xlog::LogLevel::e level, const char* format, ...)
 {
 	va_list args;
+	va_start(args, format);
+	xlog::Logger::Instance().DoLogV(level, format, args);
+	va_end(args);
+
 	va_start(args, format);
 	char buff[1024] = {};
 	vsprintf_s(buff, format, args);
 	va_end(args);
+	
+	static const unsigned int colors[] = {
+		4, 12, 2, 6, 7, 7 
+	};
 
-	xlog::Verbose(buff);
-
-	std::printf("[FDumper] ");
-	std::printf(buff);
-}
-
-static void console_error(const char* format, ...)
-{
-	va_list args;
-	va_start(args, format);
-	char buff[1024] = {};
-	vsprintf_s(buff, format, args);
-	va_end(args);
-
-	xlog::Error(buff);
-
-	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), 4);
-	std::printf("[FDumper] ");
+	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), colors[level]);
 	std::printf(buff);
 	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), 15);
 }

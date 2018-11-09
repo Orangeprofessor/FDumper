@@ -6,102 +6,67 @@
 #include "fADumper.h"
 #include "dumphandler.h"
 
-#include <winternl.h>
+#include "FDumper.h"
 
-void DestroyCmdLine()
-{
-	srand(static_cast<unsigned int>(__rdtsc()));
-	wchar_t* pszCmdLine = ::GetCommandLineW();
-	size_t cbLen = wcslen(pszCmdLine);
-	size_t cbCutOff = static_cast<size_t>(rand()) % cbLen;
-	for (size_t i = 0; i < cbLen; ++i) {
-		pszCmdLine[i] = (i == cbCutOff) ? 0 : pszCmdLine[i] ^ rand();
-	}
-}
 
-int DumpNotifier(const wchar_t* path, void* context, EXCEPTION_POINTERS* expt, bool success)
+int DumpNotifier(const wchar_t* path, void* context, PEXCEPTION_POINTERS expt, bool success)
 {
+	log_console(xlog::LogLevel::fatal, "Unhandled exception 0x%08x at 0x%08x", expt->ExceptionRecord->ExceptionCode, expt->ExceptionRecord->ExceptionAddress);
 	std::wstring errmsg = L"Oopsie woopsie a widdle fuckie wuckie! Dump file saved at '" + std::wstring(path) + L"'";
-	std::wstring title = L"Ohhhhhhhhhhhhh Nooooooooo";
+	std::wstring title = L"Yikes! That wasn't supposed to happen!";
 	MessageBoxW(GetActiveWindow(), errmsg.c_str(), title.c_str(), MB_OK | MB_ICONERROR);
+
 	return 0;
 }
 
-
-void mainDump(const int argc, const char* argv[]);
-void mainUpdate(const int argc, const char* argv[]);
-
-void prtdesc()
+void GetOSData()
 {
-	console_print("FDumper-cli v1.0.2 by Orangeprofessor!\n");
-	console_print("Usage: FDumper-cli.exe <mode> [args]\n");
-	console_print("See fdumper.txt for more details\n");
+	wchar_t winverbuff[100] = {};
+	DWORD dwsize = 100;
+
+	RegGetValue(HKEY_LOCAL_MACHINE, L"Software\\Microsoft\\Windows NT\\CurrentVersion", 
+		L"BuildLabEx", RRF_RT_REG_SZ, NULL, winverbuff, &dwsize);
+
+	xlog::Critical("Started on Windows %s", WstringToAnsi(winverbuff).c_str());
 }
 
-void loginfo()
+
+int APIENTRY wWinMain(HINSTANCE /*hInstance*/, HINSTANCE /*hPrevInstance*/, LPWSTR /*lpCmdLine*/, int /*nCmdShow*/)
 {
-	uintptr_t peb = (uintptr_t)NtCurrentTeb()->ProcessEnvironmentBlock;
+	GetOSData();
 
-	int majorver = *reinterpret_cast<int*>(peb + 0x118);
-	int minorver = *reinterpret_cast<int*>(peb + 0x11c);
-	int oscsd = *reinterpret_cast<int*>(peb + 0x122);
-	int buildno = *reinterpret_cast<int*>(peb + 0x120);
+	wchar_t temp[MAX_PATH] = {};
+	GetModuleFileNameW(NULL, temp, MAX_PATH);
 
-	xlog::Normal(
-		"Started on Windows %d.%d.%d.%d",
-		majorver,
-		minorver,
-		(oscsd >> 8) & 0xFF,
-		buildno
-	);
-}
-
-int main(const int argc, const char* argv[])
-{
-	loginfo();
-
-	DestroyCmdLine();
-
-	wchar_t exepath[MAX_PATH] = {};
-	GetModuleFileNameW(NULL, exepath, MAX_PATH);
+	std::wstring exepath(temp);
+	exepath = exepath.substr(0, exepath.find_last_of(L"\\/")); exepath.append(L"\\");
 
 	dump::DumpHandler::Instance().CreateWatchdog(exepath, dump::CreateFullDump, &DumpNotifier);
 
-	HANDLE out = GetStdHandle(STD_OUTPUT_HANDLE);
+	AllocConsole();
 
-	CONSOLE_CURSOR_INFO cursorInfo;
-	GetConsoleCursorInfo(out, &cursorInfo);
-	cursorInfo.bVisible = false;
-	SetConsoleCursorInfo(out, &cursorInfo);
+	FILE* fp = nullptr;
+	freopen_s(&fp, "CONIN$", "r", stdin);
+	freopen_s(&fp, "CONOUT$", "w", stdout);
+	freopen_s(&fp, "CONOUT$", "w", stderr);
 
-	if (argc < 2)
+	xlog::Critical("Starting cURL instance...");
+	if (auto code = curl_global_init(CURL_GLOBAL_ALL)) 
 	{
-		prtdesc();
+		log_console(xlog::LogLevel::fatal, "Failed to instance libcurl! CURLcode: %d! Quiting...\n", code);
 		return 0;
 	}
+	xlog::Critical("libcurl successfully instanced!");
 
-	curl_global_init(CURL_GLOBAL_ALL);
+	log_console(xlog::LogLevel::critical, "FDumper v2.0.0 by Orangeprofessor!\n");
+	log_console(xlog::LogLevel::normal, "See the readme for more info\n");
 
-	std::string mode = argv[1];
+	FDumper st;
+	st.Start();
 
-	if (!mode.compare("dump"))
-	{
-		mainDump(argc, argv);
-	}
-	else if (!mode.compare("update"))
-	{
-		mainUpdate(argc, argv);
-	}
-	else
-	{
-		prtdesc();
-	}
+	FreeConsole();
 
 	curl_global_cleanup();
-
-	GetConsoleCursorInfo(out, &cursorInfo);
-	cursorInfo.bVisible = true;
-	SetConsoleCursorInfo(out, &cursorInfo);
 
 	return 0;
 }

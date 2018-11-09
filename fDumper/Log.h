@@ -9,7 +9,6 @@
 
 namespace xlog
 {
-
 	namespace LogLevel
 	{
 		enum e

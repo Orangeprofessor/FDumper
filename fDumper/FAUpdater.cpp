@@ -7,24 +7,22 @@
 
 #include "../contrib/rapidjson/istreamwrapper.h"
 
-void mainUpdate(const int argc, const char* argv[])
-{
-	CFAUpdater upd;
-	upd.Main(argc, argv);
-}
-
 void CFAUpdater::PrintDescription()
 {
-	console_print("FurAffinity user gallery updater\n");
-	console_print("Usage: FDumper.exe update [flags] [user1] [user2] ...\n");
-	console_print("--all-users (-A) Update all galleries in folder (don't specify a user for this one)\n");
+	log_console(xlog::LogLevel::normal,
+		"FurAffinity user gallery updater\n"
+		"Usage: update [flags] [user1] [user2] ...\n\n"
+		"Content filtering:\n"
+		" --all-users		Update all galleries in folder (don't specify a user for this one)\n\n");
+
+	BaseClass::PrintDescription();
 }
 
 bool CFAUpdater::Argument(arg_t & arg)
 {
-	std::string s = arg.v[arg.i];
+	std::wstring s = arg.v[arg.i];
 
-	if (!s.compare("--all-users") || !s.compare("-A"))
+	if (!s.compare(L"--all-users"))
 	{
 		m_allusers = true;
 		return ++arg.i <= arg.c;
@@ -42,10 +40,10 @@ void CFAUpdater::Action(arg_t & arg)
 	{
 		for (; arg.i < arg.c; ++arg.i)
 		{
-			std::string name = arg.v[arg.i];
+			std::string name = WstringToAnsi(arg.v[arg.i]);
 
 			if (Update(name)) {
-				console_error("Couldn't update gallery for '%s'\n", name.c_str());
+				log_console(xlog::LogLevel::error, "Couldn't update gallery for '%s'\n", name.c_str());
 			}
 		}
 	}
@@ -53,14 +51,14 @@ void CFAUpdater::Action(arg_t & arg)
 
 int CFAUpdater::Update(std::string name)
 {
-	console_print("Processing gallery '%s'\n", name.c_str());
+	log_console(xlog::LogLevel::normal, "Processing gallery '%s'\n", name.c_str());
 
 	std::wstring dir = m_path + L"\\" + AnsiToWstring(name);
 
 	std::ifstream is(dir + L"\\" + std::wstring(L"config.json"));
 	if (!is.good())
 	{
-		console_error("Config not found for %s!\n", name.c_str());
+		log_console(xlog::LogLevel::error, "Config not found for %s!\n", name.c_str());
 		return -1;
 	}
 
@@ -83,7 +81,7 @@ int CFAUpdater::Update(std::string name)
 
 		std::vector<int> currentImgs;
 
-		console_print("Scanning images in scrap folder for %s...", name.c_str());
+		log_console(xlog::LogLevel::normal, "Scanning images in scrap folder for %s...", name.c_str());
 
 		for (auto& p : fs::directory_iterator(dir))
 		{
@@ -107,7 +105,7 @@ int CFAUpdater::Update(std::string name)
 
 		std::printf("Done!\n");
 
-		console_print("Comparing new and legacy submission lists...");
+		log_console(xlog::LogLevel::normal, "Comparing new and legacy submission lists...");
 
 		scraps.erase(std::remove_if(scraps.begin(), scraps.end(), [&](int id)
 		{
@@ -116,7 +114,7 @@ int CFAUpdater::Update(std::string name)
 
 		std::printf("Done!\n");
 
-		console_print("%d submission(s) not found!\n", scraps.size());
+		log_console(xlog::LogLevel::warning, "%d submission(s) not found!\n", scraps.size());
 
 		if (!scraps.empty())
 		{
@@ -125,7 +123,7 @@ int CFAUpdater::Update(std::string name)
 			{
 				FASubmission sub(id);
 
-				console_print("Downloading new scrap submission data...");
+				log_console(xlog::LogLevel::warning, "Downloading new scrap submission data...");
 
 				int barWidth = 45;
 				std::cout << "[";
@@ -149,8 +147,8 @@ int CFAUpdater::Update(std::string name)
 			DownloadInternal(subvec, dir);
 		}
 
-		console_print("Finished processing gallery '%s'\n", name.c_str());
-		console_print("======================================\n");
+		log_console(xlog::LogLevel::normal, "Finished processing gallery '%s'\n", name.c_str());
+		log_console(xlog::LogLevel::verbose, "======================================\n");
 		return 0;
 	}
 
@@ -159,7 +157,7 @@ int CFAUpdater::Update(std::string name)
 
 		std::vector<int> currentImgs;
 
-		console_print("Scanning images in main folder for '%s'...", name.c_str());
+		log_console(xlog::LogLevel::normal, "Scanning images in main folder for '%s'...", name.c_str());
 
 		for (auto& p : fs::directory_iterator(dir))
 		{
@@ -182,7 +180,7 @@ int CFAUpdater::Update(std::string name)
 		}
 		std::printf("Done!\n");
 
-		console_print("Comparing new and legacy submission lists...");
+		log_console(xlog::LogLevel::normal, "Comparing new and legacy submission lists...");
 
 		maingallery.erase(std::remove_if(maingallery.begin(), maingallery.end(), [&](int id)
 		{
@@ -191,7 +189,7 @@ int CFAUpdater::Update(std::string name)
 
 		std::printf("Done!\n");
 
-		console_print("%d submission(s) not found!\n", maingallery.size());
+		log_console(xlog::LogLevel::normal, "%d submission(s) not found!\n", maingallery.size());
 
 		if (!maingallery.empty())
 		{
@@ -200,7 +198,7 @@ int CFAUpdater::Update(std::string name)
 			{
 				FASubmission sub(id);
 
-				console_print("Downloading new submission data...");
+				log_console(xlog::LogLevel::normal, "Downloading new submission data...");
 
 				int barWidth = 45;
 				std::cout << "[";
@@ -235,7 +233,7 @@ int CFAUpdater::Update(std::string name)
 
 		std::vector<int> currentImgs;
 
-		console_print("Scanning images in scrap folder for '%s'...", name.c_str());
+		log_console(xlog::LogLevel::normal, "Scanning images in scrap folder for '%s'...", name.c_str());
 
 		for (auto& p : fs::directory_iterator(dir))
 		{
@@ -259,7 +257,7 @@ int CFAUpdater::Update(std::string name)
 
 		std::printf("Done!\n");
 
-		console_print("Comparing new and legacy submission lists...");
+		log_console(xlog::LogLevel::normal, "Comparing new and legacy submission lists...");
 
 		scraps.erase(std::remove_if(scraps.begin(), scraps.end(), [&](int id)
 		{
@@ -268,7 +266,7 @@ int CFAUpdater::Update(std::string name)
 
 		std::printf("Done!\n");
 
-		console_print("%d submission(s) not found!\n", scraps.size());
+		log_console(xlog::LogLevel::normal, "%d submission(s) not found!\n", scraps.size());
 
 		if (!scraps.empty())
 		{
@@ -277,7 +275,7 @@ int CFAUpdater::Update(std::string name)
 			{
 				FASubmission sub(id);
 
-				console_print("Downloading new scrap submission data...");
+				log_console(xlog::LogLevel::normal, "Downloading new scrap submission data...");
 
 				int barWidth = 45;
 				std::cout << "[";
@@ -302,8 +300,8 @@ int CFAUpdater::Update(std::string name)
 		}
 	}
 
-	console_print("Finished processing gallery '%s'\n", name.c_str());
-	console_print("======================================\n");
+	log_console(xlog::LogLevel::normal, "Finished processing gallery '%s'\n", name.c_str());
+	log_console(xlog::LogLevel::verbose, "======================================\n");
 	return 0;
 }
 
@@ -354,7 +352,7 @@ std::vector<int> CFAUpdater::GetUserMainGalleryPages(std::string user, int ratin
 	};
 
 
-	console_print("Downloading new submission pages...");
+	log_console(xlog::LogLevel::normal, "Downloading new submission pages...");
 
 	int curpage = 1;
 	while (true)
@@ -371,7 +369,7 @@ std::vector<int> CFAUpdater::GetUserMainGalleryPages(std::string user, int ratin
 
 		if (CURLcode err = curlDownload(urlbuff, buffer))
 		{
-			console_error("Couldn't download page %d!, %s, retrying...\n", curpage, curl_easy_strerror(err));
+			log_console(xlog::LogLevel::warning, "Couldn't download page %d!, %s, retrying...\n", curpage, curl_easy_strerror(err));
 			continue;
 		}
 
@@ -406,13 +404,13 @@ std::vector<int> CFAUpdater::GetUserMainGalleryPages(std::string user, int ratin
 
 			if (CURLcode err = curlDownload(urlbuff, buffer))
 			{
-				console_error("Couldn't download page %d!, %s, retrying...\n", curpage, curl_easy_strerror(err));
+				log_console(xlog::LogLevel::warning, "Couldn't download page %d!, %s, retrying...\n", curpage, curl_easy_strerror(err));
 				continue;
 			}
 
 			if (buffer == "FAExport encounter an internal error") {
 				std::printf("\n");
-				console_error("download error! retrying...\n");
+				log_console(xlog::LogLevel::warning, "download error! retrying...\n");
 				continue;
 			}
 
@@ -441,7 +439,7 @@ std::vector<int> CFAUpdater::GetUserMainGalleryPages(std::string user, int ratin
 		}), gallery.end());
 	}
 
-	console_print("%d total images\n", gallery.size());
+	log_console(xlog::LogLevel::normal, "%d total images\n", gallery.size());
 
 	return gallery;
 }
@@ -449,7 +447,7 @@ std::vector<int> CFAUpdater::GetUserMainGalleryPages(std::string user, int ratin
 std::vector<int> CFAUpdater::GetUserScrapGalleryPages(std::string user, int rating)
 {
 	std::vector<int> scraps;
-	console_print("Downloading new scrap submission pages...");
+	log_console(xlog::LogLevel::normal, "Downloading new scrap submission pages...");
 
 	auto curlDownload = [&](const std::string& url, std::string& buffer) -> CURLcode
 	{
@@ -479,7 +477,7 @@ std::vector<int> CFAUpdater::GetUserScrapGalleryPages(std::string user, int rati
 
 		if (CURLcode err = curlDownload(urlbuff, buffer))
 		{
-			console_error("Couldn't download page %d!, %s, retrying...\n", curpage, curl_easy_strerror(err));
+			log_console(xlog::LogLevel::warning, "Couldn't download page %d!, %s, retrying...\n", curpage, curl_easy_strerror(err));
 			continue;
 		}
 
@@ -514,13 +512,13 @@ std::vector<int> CFAUpdater::GetUserScrapGalleryPages(std::string user, int rati
 
 			if (CURLcode err = curlDownload(urlbuff, buffer))
 			{
-				console_error("Couldn't download page %d!, %s, retrying...\n", curpage, curl_easy_strerror(err));
+				log_console(xlog::LogLevel::warning, "Couldn't download page %d!, %s, retrying...\n", curpage, curl_easy_strerror(err));
 				continue;
 			}
 
 			if (buffer == "FAExport encounter an internal error") {
 				std::printf("\n");
-				console_error("download error! retrying...\n");
+				log_console(xlog::LogLevel::warning, "download error! retrying...\n");
 				continue;
 			}
 
@@ -550,7 +548,7 @@ std::vector<int> CFAUpdater::GetUserScrapGalleryPages(std::string user, int rati
 
 	}
 
-	console_print("%d total images\n", scraps.size());
+	log_console(xlog::LogLevel::normal, "%d total images\n", scraps.size());
 
 	return scraps;
 }
@@ -589,7 +587,7 @@ int CFAUpdater::DownloadInternal(std::vector<FASubmission> gallery, std::wstring
 			return std::fclose(fp), res;
 		};
 
-		console_print("Downloading new submissions...");
+		log_console(xlog::LogLevel::normal, "Downloading new submissions...");
 
 		auto truncate = [&](std::string str, size_t width) -> std::string {
 			if (str.length() > width)
@@ -611,7 +609,7 @@ int CFAUpdater::DownloadInternal(std::vector<FASubmission> gallery, std::wstring
 
 		if (auto code = curlDownload(link, savedir))
 		{
-			console_error("Couldn't download submission %s!, %s, retrying...\n", filename.c_str(), curl_easy_strerror(code));
+			log_console(xlog::LogLevel::warning, "Couldn't download submission %s!, %s, retrying...\n", filename.c_str(), curl_easy_strerror(code));
 			continue;
 		}
 

@@ -44,13 +44,13 @@ struct FASubmission
 			std::string buffer;
 
 			if (auto err = curlDownload(urlbuff, buffer)) {
-				console_error("Download error! %s! retrying...\n", curl_easy_strerror(err));
+				log_console(xlog::LogLevel::warning, "Download error! %s! retrying...\n", curl_easy_strerror(err));
 				continue;
 			}
 
 			if (buffer == "FAExport encounter an internal error") {
 				std::printf("\n");
-				console_error("download error! retrying...\n");
+				log_console(xlog::LogLevel::warning, "download error! retrying...\n");
 				continue;
 			}
 

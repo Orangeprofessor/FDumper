@@ -8,42 +8,41 @@
 #include "fADumper.h"
 #include "Log.h"
 
-void mainDump(const int argc, const char* argv[])
-{
-	CFADumper dump;
-	dump.Main(argc, argv);
-}
 
 void CFADumper::PrintDescription()
 {
-	console_print("FurAffinity user gallery dumper\n");
-	console_print("Usage: FDumper.exe dump [flags] [user1] [user2] ...\n");
-	console_print("--sfw-only (-sfw) Only dump SFW submissions\n");
-	console_print("--nsfw-only (-nsfw) Only dump NSFW submissions\n");
-	console_print("--scraps-only (-scraps) Only dump images from the scraps folder\n");
-	console_print("--no-scraps (-noscraps) Only dump images from the main gallery\n");
+	log_console(xlog::LogLevel::normal,
+	"FurAffinity user gallery dumper\n"
+	"Usage: dump [flags] [user1] [user2] ...\n\n"
+	"Content filtering: (dont specify one for dumping all submissions)\n"
+	" --sfw-only		Only dump SFW submissions\n"
+	" --nsfw-only		Only dump NSFW submissions\n"
+	" --scraps-only		Only dump images from the scraps folder\n"
+	" --no-scraps		Only dump images from the main gallery\n\n");
+
+	BaseClass::PrintDescription();
 }
 
 bool CFADumper::Argument(arg_t & arg)
 {
-	std::string s = arg.v[arg.i];
+	std::wstring s = arg.v[arg.i];
 
-	if (!s.compare("--sfw-only") || !s.compare("-sfw"))
+	if (!s.compare(L"--sfw-only"))
 	{
 		m_rating = SFW_ONLY;
 		return ++arg.i <= arg.c;
 	}
-	else if (!s.compare("--nsfw-only") || !s.compare("-nsfw"))
+	else if (!s.compare(L"--nsfw-only"))
 	{
 		m_rating = NSFW_ONLY;
 		return ++arg.i <= arg.c;
 	}
-	else if (!s.compare("--scraps-only") || !s.compare("-scraps"))
+	else if (!s.compare(L"--scraps-only"))
 	{
 		m_gallery = SCRAPS_ONLY;
 		return ++arg.i <= arg.c;
 	}
-	else if (!s.compare("--no-scraps") || !s.compare("-noscraps"))
+	else if (!s.compare(L"--no-scraps"))
 	{
 		m_gallery = NO_SCRAPS;
 		return ++arg.i <= arg.c;
@@ -60,7 +59,7 @@ void CFADumper::Action(arg_t & arg)
 	{
 		m_savedir.erase(); m_savedir.assign(m_path);
 
-		m_uHandle = arg.v[arg.i];
+		m_uHandle = WstringToAnsi(arg.v[arg.i]);
 		CreateDirectoryW((m_savedir + L"\\" + AnsiToWstring(m_uHandle)).c_str(), NULL);
 
 		char jsonbuff[80];
@@ -79,7 +78,7 @@ void CFADumper::Action(arg_t & arg)
 
 		Download();
 
-		console_print("Finished processing user gallery '%s'\n", m_uHandle.c_str());
+		log_console(xlog::LogLevel::normal, "Finished processing user gallery '%s'\n", m_uHandle.c_str());
 	}
 }
 
@@ -88,8 +87,8 @@ int CFADumper::Download()
 	m_savedir += L"\\" + AnsiToWstring(m_uHandle);
 	CreateDirectoryW(m_savedir.c_str(), NULL);
 
-	console_print("Processing user gallery '%s'\n", m_uHandle.c_str());
-	console_print("Dumping gallery '%s' to '%s'\n", m_uHandle.c_str(), WstringToAnsi(m_savedir).c_str());
+	log_console(xlog::LogLevel::normal, "Processing user gallery '%s'\n", m_uHandle.c_str());
+	log_console(xlog::LogLevel::normal, "Dumping gallery '%s' to '%s'\n", m_uHandle.c_str(), WstringToAnsi(m_savedir).c_str());
 
 	if (m_gallery == faGalleryFlags::SCRAPS_ONLY)
 	{
@@ -142,8 +141,9 @@ std::vector<FASubmission> CFADumper::GetMainGallery()
 		return code;
 	};
 
+	log_console(xlog::LogLevel::normal, "Downloading submission pages...");
+
 	int curpage = 1;
-	console_print("Downloading submission pages...");
 	while (true)
 	{
 		char urlbuff[200] = {};
@@ -158,13 +158,13 @@ std::vector<FASubmission> CFADumper::GetMainGallery()
 
 		if (CURLcode err = curlDownload(urlbuff, buffer))
 		{
-			console_error("Couldn't download page %d!, %s, retrying...\n", curpage, curl_easy_strerror(err));
+			log_console(xlog::LogLevel::warning, "Couldn't download page %d!, %s, retrying...\n", curpage, curl_easy_strerror(err));
 			continue;
 		}
 
 		if (buffer == "FAExport encounter an internal error") {
 			std::printf("\n");
-			console_error("download error! retrying...\n");
+			log_console(xlog::LogLevel::warning, "download error! retrying...\n");
 			continue;
 		}
 
@@ -200,13 +200,13 @@ std::vector<FASubmission> CFADumper::GetMainGallery()
 
 			if (CURLcode err = curlDownload(urlbuff, buffer))
 			{
-				console_error("Couldn't download page %d!, %s, retrying...\n", curpage, curl_easy_strerror(err));
+				log_console(xlog::LogLevel::warning, "Couldn't download page %d!, %s, retrying...\n", curpage, curl_easy_strerror(err));
 				continue;
 			}
 
 			if (buffer == "FAExport encounter an internal error") {
 				std::printf("\n");
-				console_error("download error! retrying...\n");
+				log_console(xlog::LogLevel::warning, "download error! retrying...\n");
 				continue;
 			}
 
@@ -234,7 +234,7 @@ std::vector<FASubmission> CFADumper::GetMainGallery()
 	}
 	std::printf("Done!\n");
 
-	console_print("%d total images\n", tempIDs.size());
+	log_console(xlog::LogLevel::normal, "%d total images\n", tempIDs.size());
 
 	int progress = 1;
 
@@ -242,7 +242,7 @@ std::vector<FASubmission> CFADumper::GetMainGallery()
 	{
 		FASubmission submission(IDs);
 
-		console_print("Downloading submission data...");
+		log_console(xlog::LogLevel::normal, "Downloading submission data...");
 
 		int barWidth = 45;
 		std::cout << "[";
@@ -287,7 +287,7 @@ std::vector<FASubmission> CFADumper::GetScrapGallery()
 
 
 	int curpage = 1;
-	console_print("Downloading scrap submission pages...");
+	log_console(xlog::LogLevel::normal, "Downloading scrap submission pages...");
 	while (true)
 	{
 		char urlbuff[200] = {};
@@ -303,13 +303,13 @@ std::vector<FASubmission> CFADumper::GetScrapGallery()
 
 		if (CURLcode err = curlDownload(urlbuff, buffer))
 		{
-			console_error("Couldn't download page %d!, %s, retrying...", curpage, curl_easy_strerror(err));
+			log_console(xlog::LogLevel::warning, "Couldn't download page %d!, %s, retrying...", curpage, curl_easy_strerror(err));
 			continue;
 		}
 
 		if (buffer == "FAExport encounter an internal error") {
 			std::printf("\n");
-			console_error("download error! retrying...\n");
+			log_console(xlog::LogLevel::warning, "download error! retrying...\n");
 			continue;
 		}
 
@@ -347,13 +347,13 @@ std::vector<FASubmission> CFADumper::GetScrapGallery()
 
 			if (CURLcode err = curlDownload(urlbuff, buffer))
 			{
-				console_error("Couldn't download page %d!, %s, retrying...\n", curpage, curl_easy_strerror(err));
+				log_console(xlog::LogLevel::warning, "Couldn't download page %d!, %s, retrying...\n", curpage, curl_easy_strerror(err));
 				continue;
 			}
 
 			if (buffer == "FAExport encounter an internal error") {
 				std::printf("\n");
-				console_error("download error! retrying...\n");
+				log_console(xlog::LogLevel::warning, "download error! retrying...\n");
 				continue;
 			}
 
@@ -385,7 +385,7 @@ std::vector<FASubmission> CFADumper::GetScrapGallery()
 	std::printf("Done!\n");
 
 
-	console_print("%d total images\n", tempIDs.size());
+	log_console(xlog::LogLevel::normal, "%d total images\n", tempIDs.size());
 
 	int progress = 1;
 
@@ -393,7 +393,7 @@ std::vector<FASubmission> CFADumper::GetScrapGallery()
 	{
 		FASubmission submission(IDs);
 
-		console_print("Downloading scrap submission data...");
+		log_console(xlog::LogLevel::normal, "Downloading scrap submission data...");
 
 		int barWidth = 45;
 		std::cout << "[";
@@ -449,7 +449,7 @@ int CFADumper::DownloadInternal(std::vector<FASubmission> gallery)
 			return std::fclose(fp), res;
 		};
 
-		console_print("Downloading submissions...");
+		log_console(xlog::LogLevel::normal, "Downloading submissions...");
 
 		auto truncate = [&](std::string str, size_t width) -> std::string {
 			if (str.length() > width)
@@ -470,7 +470,7 @@ int CFADumper::DownloadInternal(std::vector<FASubmission> gallery)
 
 		if (auto code = curlDownload(link, savedir))
 		{
-			console_error("Couldn't download submission %s!, %s, retrying...\n", filename.c_str(), curl_easy_strerror(code));
+			log_console(xlog::LogLevel::warning, "Couldn't download submission %s!, %s, retrying...\n", filename.c_str(), curl_easy_strerror(code));
 			continue;
 		}
 
