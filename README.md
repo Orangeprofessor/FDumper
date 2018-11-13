@@ -44,7 +44,7 @@ supported flags:
  
 Example commands:
 ~~~text
-FDumper> dump -sfw --scraps-only strange-fox
+FDumper> dump --sfw-only --scraps-only strange-fox
 ~~~
 
 a dialog box will appear after the above command was issued
@@ -96,4 +96,3 @@ Downloading new scrap submission data...[=======================================
 Downloading new submissions...[=============================================] 100% (7411290-1329367100.st...)
 Finished processing gallery 'strange-fox'
 ~~~
-
