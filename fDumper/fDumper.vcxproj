@@ -163,8 +163,10 @@
   <ItemGroup>
     <ClInclude Include="CBaseDumper.h" />
     <ClInclude Include="config.h" />
+    <ClInclude Include="ctpl_stl.hpp" />
     <ClInclude Include="dumphandler.h" />
     <ClInclude Include="FADumper.h" />
+    <ClInclude Include="FAFavorites.h" />
     <ClInclude Include="FASubmission.h" />
     <ClInclude Include="FAUpdater.h" />
     <ClInclude Include="FDumper.h" />
@@ -176,6 +178,7 @@
     <ClCompile Include="CBaseDumper.cpp" />
     <ClCompile Include="dumphandler.cpp" />
     <ClCompile Include="FADumper.cpp" />
+    <ClCompile Include="FAFavorites.cpp" />
     <ClCompile Include="FAUpdater.cpp" />
     <ClCompile Include="FDumper.cpp" />
     <ClCompile Include="main.cpp" />

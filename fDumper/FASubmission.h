@@ -69,7 +69,7 @@ struct FASubmission
 
 			break;
 		}
-	
+
 	}
 
 	inline std::string GetDownloadLink() { return downloadURL; }
@@ -77,6 +77,12 @@ struct FASubmission
 	inline std::string GetSubmissionTitle() { return title; }
 	inline int GetRating() { return rating; }
 	inline std::string GetRatingText() { return ratingstr; }
+	inline std::string GetFilename() {
+		return downloadURL.substr(downloadURL.find_last_of("/") + 1);
+	}
+	inline std::string GetCDNFilename() {
+		return GetFilename().substr(GetFilename().find_first_of(".") + 1);
+	}
 
 private:
 	std::string downloadURL;

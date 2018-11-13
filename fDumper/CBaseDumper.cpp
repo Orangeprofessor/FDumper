@@ -15,7 +15,7 @@ void CBaseDumper::Main(const int argc, wchar_t* argv[])
 	arg_t arg = { argc, argv, 1 };
 	if (!ReadArgs(arg))
 	{
-		log_console(xlog::LogLevel::error, "Invalid arguments!");
+		log_console(xlog::LogLevel::error, "Invalid arguments!\n");
 		PrintDescription();
 		return;
 	}
@@ -82,7 +82,7 @@ bool CBaseDumper::ReadArgs(arg_t& arg)
 	{
 		if (!Argument(arg))
 		{
-			log_console(xlog::LogLevel::error, "Unknown argument %s!\n", arg.v[arg.i]);
+			log_console(xlog::LogLevel::error, "Unknown argument %s!\n", WstringToAnsi(arg.v[arg.i]).c_str());
 			return false;
 		}
 	}

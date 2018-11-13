@@ -31,7 +31,7 @@ void GetOSData()
 }
 
 
-int APIENTRY wWinMain(HINSTANCE /*hInstance*/, HINSTANCE /*hPrevInstance*/, LPWSTR /*lpCmdLine*/, int /*nCmdShow*/)
+int APIENTRY wWinMain(HINSTANCE /*hInstance*/, HINSTANCE /*hPrevInstance*/, LPWSTR lpCmdLine, int /*nCmdShow*/)
 {
 	GetOSData();
 
@@ -62,7 +62,7 @@ int APIENTRY wWinMain(HINSTANCE /*hInstance*/, HINSTANCE /*hPrevInstance*/, LPWS
 	log_console(xlog::LogLevel::normal, "See the readme for more info\n");
 
 	FDumper st;
-	st.Start();
+	st.Start(lpCmdLine);
 
 	FreeConsole();
 

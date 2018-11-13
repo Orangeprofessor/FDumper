@@ -8,6 +8,7 @@
 #include "../contrib/curl/curl.h"
 #include "../contrib/rapidjson/document.h"
 
+#include <mutex>
 
 struct arg_t
 {
@@ -34,6 +35,29 @@ public:
 public:
 	const std::wstring m_path;
 	std::string m_api;
+};
+
+template<typename T>
+class ThreadLock
+{
+public:
+	ThreadLock& operator=(const T& t) {
+		std::lock_guard<std::mutex> lock(m_mutex);
+		m_protected = t;
+		return *this;
+	}
+	operator T() const {
+		std::lock_guard<std::mutex> lock(m_mutex);
+		return m_protected;
+	}
+	void execute(std::function<void(T)> callback) {
+		assert(callback != nullptr);
+		std::lock_guard<std::mutex> lock(m_mutex);
+		callback(m_protected);
+	}
+private:
+	mutable std::mutex m_mutex;
+	T m_protected{};
 };
 
 static size_t writebuffercallback(void *contents, size_t size, size_t nmemb, void *userp)

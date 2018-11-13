@@ -3,7 +3,7 @@
 class FDumper
 {
 public:
-	void Start();
+	void Start(std::wstring cmd);
 	void WaitForCommand();
 	bool ParseCommand(std::wstring cmd);
 };

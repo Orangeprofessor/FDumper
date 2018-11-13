@@ -21,6 +21,8 @@ private:
 
 	int DownloadInternal(std::vector<FASubmission> gallery, std::wstring folder);
 
+	static CURLcode ThreadedImageDownload(int threadID, FASubmission submission, std::wstring path, ThreadLock<int>* progress);
+
 private:
 	bool m_allusers = false;
 };

@@ -45,6 +45,12 @@
     <ClInclude Include="FADumper.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="ctpl_stl.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="FAFavorites.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -66,6 +72,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="FADumper.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="FAFavorites.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

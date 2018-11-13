@@ -1,22 +1,23 @@
 #include "pch.h"
 
 #include "FDumper.h"
-#include "fADumper.h"
+#include "FADumper.h"
 #include "FAUpdater.h"
+#include "FAFavorites.h"
 
-void FDumper::Start()
+void FDumper::Start(std::wstring cmd)
 {
+	if (!cmd.empty())
+	{
+		ParseCommand(cmd);
+		return;
+	}
+
 	int argc = 0;
 	auto pCmdLine = GetCommandLineW();
 	auto argv = CommandLineToArgvW(pCmdLine, &argc);
 
-	if (argc == 1)
-	{
-		WaitForCommand();
-		return;
-	}
-	
-	ParseCommand(pCmdLine);
+	WaitForCommand();
 }
 
 void FDumper::WaitForCommand()
@@ -53,6 +54,12 @@ bool FDumper::ParseCommand(std::wstring cmd)
 		CFAUpdater updater;
 		updater.Main(argc, argv);
 	}
+	// Not yet!
+	/*else if (!mode.compare(L"favorites"))
+	{
+		CFAFavorites favorites;
+		favorites.Main(argc, argv);
+	}*/
 	else if (!mode.compare(L"exit"))
 	{
 		return true;

@@ -7,13 +7,17 @@
 
 #include "../contrib/rapidjson/istreamwrapper.h"
 
+#include "ctpl_stl.hpp"
+
 void CFAUpdater::PrintDescription()
 {
 	log_console(xlog::LogLevel::normal,
 		"FurAffinity user gallery updater\n"
 		"Usage: update [flags] [user1] [user2] ...\n\n"
 		"Content filtering:\n"
-		" --all-users		Update all galleries in folder (don't specify a user for this one)\n\n");
+		" --all-users		Update all galleries in folder (don't specify a user for this one)\n\n"
+		" --no-favorites	Don't update favorites for gallery"
+		" --favorites-only	Only update favorites for gallery");
 
 	BaseClass::PrintDescription();
 }
@@ -51,7 +55,7 @@ void CFAUpdater::Action(arg_t & arg)
 
 int CFAUpdater::Update(std::string name)
 {
-	log_console(xlog::LogLevel::normal, "Processing gallery '%s'\n", name.c_str());
+	log_console(xlog::LogLevel::critical, "Processing gallery '%s'\n", name.c_str());
 
 	std::wstring dir = m_path + L"\\" + AnsiToWstring(name);
 
@@ -147,7 +151,7 @@ int CFAUpdater::Update(std::string name)
 			DownloadInternal(subvec, dir);
 		}
 
-		log_console(xlog::LogLevel::normal, "Finished processing gallery '%s'\n", name.c_str());
+		log_console(xlog::LogLevel::critical, "Finished processing gallery '%s'\n", name.c_str());
 		log_console(xlog::LogLevel::verbose, "======================================\n");
 		return 0;
 	}
@@ -300,7 +304,7 @@ int CFAUpdater::Update(std::string name)
 		}
 	}
 
-	log_console(xlog::LogLevel::normal, "Finished processing gallery '%s'\n", name.c_str());
+	log_console(xlog::LogLevel::critical, "Finished processing gallery '%s'\n", name.c_str());
 	log_console(xlog::LogLevel::verbose, "======================================\n");
 	return 0;
 }
@@ -555,68 +559,89 @@ std::vector<int> CFAUpdater::GetUserScrapGalleryPages(std::string user, int rati
 
 int CFAUpdater::DownloadInternal(std::vector<FASubmission> gallery, std::wstring folder)
 {
-	int progress = 1;
+	ThreadLock<int> progress;
+	progress.operator=(1);
 
-	if (gallery.empty())
-		return 0;
+	ctpl::thread_pool threads(std::thread::hardware_concurrency());
 
 	for (auto submission : gallery)
+		threads.push(ThreadedImageDownload, submission, folder, &progress);
+
+	do
 	{
-		auto link = submission.GetDownloadLink();
-		auto filename = link.substr(link.find_last_of("/") + 1);
-
-		std::string id = std::to_string(submission.GetSubmissionID()); id.append("-");
-		filename.insert(0, id);
-
-		std::wstring savedir = folder + std::wstring(L"\\") +
-			AnsiToWstring(filename);
-
-		auto curlDownload = [&](const std::string& url, const std::wstring& path) -> CURLcode
-		{
-			FILE* fp = nullptr;
-			_wfopen_s(&fp, path.c_str(), L"wb");
-
-			CURL* pCurl = curl_easy_init();
-
-			curl_easy_setopt(pCurl, CURLOPT_URL, url.c_str());
-			curl_easy_setopt(pCurl, CURLOPT_WRITEFUNCTION, writefilecallback);
-			curl_easy_setopt(pCurl, CURLOPT_WRITEDATA, fp);
-
-			CURLcode res = curl_easy_perform(pCurl);
-
-			return std::fclose(fp), res;
-		};
-
-		log_console(xlog::LogLevel::normal, "Downloading new submissions...");
-
-		auto truncate = [&](std::string str, size_t width) -> std::string {
-			if (str.length() > width)
-				return str.substr(0, width) + "...";
-			return str;
-		};
-
-
+		log_console(xlog::LogLevel::normal, "Downloading submissions...");
 		int barWidth = 45;
 		std::cout << "[";
-		int pos = ((float)progress / (float)gallery.size()) * barWidth;
+		int pos = ((float)progress.operator int() / (float)gallery.size()) * barWidth;
 		for (int i = 0; i < barWidth; ++i) {
 			if (i < pos) std::cout << "=";
 			else if (i == pos) std::cout << ">";
 			else std::cout << " ";
 		}
-		std::cout << "] " << int(((float)progress / (float)gallery.size()) * 100) << "% (" << truncate(filename, 21) << ")\r";
+		std::cout << "] " << int(((float)progress.operator int() / (float)gallery.size()) * 100) << "%\r";
 		std::cout.flush();
 
-		if (auto code = curlDownload(link, savedir))
-		{
-			log_console(xlog::LogLevel::warning, "Couldn't download submission %s!, %s, retrying...\n", filename.c_str(), curl_easy_strerror(code));
-			continue;
-		}
+	} while (threads.size() != threads.n_idle());
 
-		++progress;
-	}
+	std::printf("\n");
 
 	std::printf("\n");
 
 	return 0;
+}
+
+CURLcode CFAUpdater::ThreadedImageDownload(int threadID, FASubmission submission, std::wstring path, ThreadLock<int>* progress)
+{
+	auto curlDownload = [&](const std::string& url, const std::wstring& path) -> CURLcode
+	{
+		FILE* fp = nullptr;
+		_wfopen_s(&fp, path.c_str(), L"wb");
+
+		CURL* pCurl = curl_easy_init();
+
+		curl_easy_setopt(pCurl, CURLOPT_URL, url.c_str());
+		curl_easy_setopt(pCurl, CURLOPT_WRITEFUNCTION, writefilecallback);
+		curl_easy_setopt(pCurl, CURLOPT_WRITEDATA, fp);
+
+		CURLcode res = curl_easy_perform(pCurl);
+
+		return std::fclose(fp), res;
+	};
+
+	auto truncate = [&](std::string str, size_t width) -> std::string {
+		if (str.length() > width)
+			return str.substr(0, width) + "...";
+		return str;
+	};
+
+	auto link = submission.GetDownloadLink();
+	auto filename = submission.GetFilename();
+
+	std::string id = std::to_string(submission.GetSubmissionID()); id.append("-");
+	filename.insert(0, id);
+
+	std::wstring savedir = path + L"\\" + AnsiToWstring(filename);
+
+	CURLcode returncode;
+
+	for (int i = 5; i > 1; --i)
+	{
+		returncode = curlDownload(link, savedir);
+
+		if (returncode == CURLE_OK)
+			break;
+
+		// Gotta be grammar correct
+		if (i == 1)
+			log_console(xlog::LogLevel::warning, "\n Download error for '%s', %d retry left\n", truncate(submission.GetCDNFilename(), 21).c_str(), i);
+		else
+			log_console(xlog::LogLevel::warning, "\n Download error for '%s', %d retries left\n", truncate(submission.GetCDNFilename(), 21).c_str(), i);
+	}
+
+	if (returncode != CURLE_OK)
+		log_console(xlog::LogLevel::error, "\n Failed to download '%s', %s!\n", truncate(submission.GetCDNFilename(), 21), curl_easy_strerror(returncode));
+
+	int curprogress = progress->operator int(); curprogress++;
+	progress->operator=(curprogress);
+	return returncode;
 }
