@@ -84,7 +84,7 @@ void CFADumper::Action(arg_t & arg)
 	}
 }
 
-int CFADumper::Download()
+void CFADumper::Download()
 {
 	m_savedir += L"\\" + AnsiToWstring(m_uHandle);
 	CreateDirectoryW(m_savedir.c_str(), NULL);
@@ -102,13 +102,12 @@ int CFADumper::Download()
 
 		// download
 		DownloadInternal(fullgallery);
-
-		return 0;
 	}
 
 	auto fullgallery = GetMainGallery();
 
-	DownloadInternal(fullgallery);
+	if (!fullgallery.empty())
+		DownloadInternal(fullgallery);
 
 	if (m_gallery != faGalleryFlags::NO_SCRAPS)
 	{
@@ -117,10 +116,9 @@ int CFADumper::Download()
 		m_savedir += L"\\" + std::wstring(L"Scraps");
 		CreateDirectoryW(m_savedir.c_str(), NULL);
 
-		DownloadInternal(scrapgallery);
+		if (!scrapgallery.empty())
+			DownloadInternal(scrapgallery);
 	}
-
-	return 0;
 }
 
 std::vector<FASubmission> CFADumper::GetMainGallery()
@@ -244,16 +242,9 @@ std::vector<FASubmission> CFADumper::GetMainGallery()
 
 		log_console(xlog::LogLevel::normal, "Downloading submission data...");
 
-		int barWidth = 45;
-		std::cout << "[";
-		int pos = ((float)progress / (float)tempIDs.size()) * barWidth;
-		for (int i = 0; i < barWidth; ++i) {
-			if (i < pos) std::cout << "=";
-			else if (i == pos) std::cout << ">";
-			else std::cout << " ";
-		}
-		std::cout << "] " << int(((float)progress / (float)tempIDs.size()) * 100) << "%\r";
-		std::cout.flush();;
+		int perc = (int)std::ceil((((float)progress / (float)tempIDs.size()) * 100));
+		std::cout << perc << "%\r";
+		std::cout.flush();
 
 		submission.Setup(m_api);
 
@@ -395,15 +386,8 @@ std::vector<FASubmission> CFADumper::GetScrapGallery()
 
 		log_console(xlog::LogLevel::normal, "Downloading scrap submission data...");
 
-		int barWidth = 45;
-		std::cout << "[";
-		int pos = ((float)progress / (float)tempIDs.size()) * barWidth;
-		for (int i = 0; i < barWidth; ++i) {
-			if (i < pos) std::cout << "=";
-			else if (i == pos) std::cout << ">";
-			else std::cout << " ";
-		}
-		std::cout << "] " << int(((float)progress / (float)tempIDs.size()) * 100) << "%\r";
+		int perc = (int)std::ceil((((float)progress / (float)tempIDs.size()) * 100));
+		std::cout << perc << "%\r";
 		std::cout.flush();
 
 		submission.Setup(m_api);
@@ -421,7 +405,7 @@ std::vector<FASubmission> CFADumper::GetScrapGallery()
 int CFADumper::DownloadInternal(std::vector<FASubmission> gallery)
 {
 	ThreadLock<int> progress;
-	progress.operator=(1);
+	progress.operator=(0);
 
 	ctpl::thread_pool threads(std::thread::hardware_concurrency());
 
@@ -429,21 +413,19 @@ int CFADumper::DownloadInternal(std::vector<FASubmission> gallery)
 		threads.push(ThreadedImageDownload, submission, m_savedir, &progress);
 	}
 
-	do
+	int perc = 0;
+	while (threads.size() != threads.n_idle() || perc < 100)
 	{
 		log_console(xlog::LogLevel::normal, "Downloading submissions...");
-		int barWidth = 45;
-		std::cout << "[";
-		int pos = ((float)progress.operator int() / (float)gallery.size()) * barWidth;
-		for (int i = 0; i < barWidth; ++i) {
-			if (i < pos) std::cout << "=";
-			else if (i == pos) std::cout << ">";
-			else std::cout << " ";
-		}
-		std::cout << "] " << int(((float)progress.operator int() / (float)gallery.size()) * 100) << "%\r";
-		std::cout.flush();
 
-	} while (threads.size() != threads.n_idle());
+		float size = (float)gallery.size();
+		float progsize = (float)progress.operator int();
+
+		perc = (progsize / size) * 100;
+	
+		std::cout << perc << "%\r";
+		std::cout.flush();
+	}
 
 	std::printf("\n");
 
@@ -493,13 +475,13 @@ CURLcode CFADumper::ThreadedImageDownload(int threadID, FASubmission submission,
 
 		// Gotta be grammar correct
 		if (i == 1)
-			log_console(xlog::LogLevel::warning, "\n Download error for '%s', %d retry left\n", truncate(submission.GetCDNFilename(), 21).c_str(), i);
+			log_console(xlog::LogLevel::warning, "\nDownload error for '%s', %d retry left\n", truncate(submission.GetCDNFilename(), 21).c_str(), i);
 		else
-			log_console(xlog::LogLevel::warning, "\n Download error for '%s', %d retries left\n", truncate(submission.GetCDNFilename(), 21).c_str(), i);
+			log_console(xlog::LogLevel::warning, "\nDownload error for '%s', %d retries left\n", truncate(submission.GetCDNFilename(), 21).c_str(), i);
 	}
 
 	if (returncode != CURLE_OK)
-		log_console(xlog::LogLevel::error, "\n Failed to download '%s', %s!\n", truncate(submission.GetCDNFilename(), 21), curl_easy_strerror(returncode));
+		log_console(xlog::LogLevel::error, "\nFailed to download '%s', %s!\n", truncate(submission.GetCDNFilename(), 21).c_str(), curl_easy_strerror(returncode));
 
 	int curprogress = progress->operator int(); curprogress++;
 	progress->operator=(curprogress);

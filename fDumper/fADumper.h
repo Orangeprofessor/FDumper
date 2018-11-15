@@ -13,7 +13,7 @@ public:
 	virtual bool Argument(arg_t& arg) override;
 	virtual void Action(arg_t& arg) override;
 
-	int Download();
+	void Download();
 
 private:
 	std::vector<FASubmission> GetMainGallery();

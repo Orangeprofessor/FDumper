@@ -284,6 +284,7 @@ std::vector<FASubmission> CFAFavorites::GetFavoritesGallery()
 			else std::cout << " ";
 		}
 		std::cout << "] " << int(((float)progress / (float)tempIDs.size()) * 100) << "%\r";
+
 		std::cout.flush();;
 
 		submission.Setup(m_api);
@@ -309,21 +310,19 @@ void CFAFavorites::DownloadInternal(std::vector<FASubmission> gallery)
 		threads.push(ThreadedImageDownload, submission, m_savedir, &progress);
 	}
 
-	do
+	int perc = 0;
+	while (threads.size() != threads.n_idle() || perc < 100)
 	{
-		log_console(xlog::LogLevel::normal, "Downloading favorites...");
-		int barWidth = 45;
-		std::cout << "[";
-		int pos = ((float)progress.operator int() / (float)gallery.size()) * barWidth;
-		for (int i = 0; i < barWidth; ++i) {
-			if (i < pos) std::cout << "=";
-			else if (i == pos) std::cout << ">";
-			else std::cout << " ";
-		}
-		std::cout << "] " << int(((float)progress.operator int() / (float)gallery.size()) * 100) << "%\r";
-		std::cout.flush();
+		log_console(xlog::LogLevel::normal, "Downloading submissions...");
 
-	} while (threads.size() != threads.n_idle());
+		float size = (float)gallery.size();
+		float progsize = (float)progress.operator int();
+
+		perc = (progsize / size) * 100;
+
+		std::cout << perc << "%\r";
+		std::cout.flush();
+	}
 
 	std::printf("\n");
 }
@@ -371,9 +370,9 @@ CURLcode CFAFavorites::ThreadedImageDownload(int threadID, FASubmission submissi
 
 		// Gotta be grammar correct
 		if (i == 1)
-			log_console(xlog::LogLevel::warning, "\n Download error for '%s', %d retry left\n", truncate(submission.GetCDNFilename(), 21).c_str(), i);
+			log_console(xlog::LogLevel::warning, "\nDownload error for '%s', %d retry left\n", truncate(submission.GetCDNFilename(), 21).c_str(), i);
 		else
-			log_console(xlog::LogLevel::warning, "\n Download error for '%s', %d retries left\n", truncate(submission.GetCDNFilename(), 21).c_str(), i);
+			log_console(xlog::LogLevel::warning, "\nDownload error for '%s', %d retries left\n", truncate(submission.GetCDNFilename(), 21).c_str(), i);
 	}
 
 	if (returncode != CURLE_OK)
