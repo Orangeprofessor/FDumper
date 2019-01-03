@@ -111,7 +111,7 @@ Finished processing gallery 'strange-fox'
 ~~~
 
 
-## Gallery update tutorial
+## Favorites dump tutorial
 
 * Download the latest version of FDumper-cli from the releases section
 * Launch it
