@@ -28,7 +28,7 @@ struct FASubmission
 
 			sprintf_s(urlbuff, "%s/submission/%d.json", api.c_str(), submissionID);
 
-			auto curlDownload = [&](const std::string& url, std::string& buffer) -> CURLcode
+			auto curlDownload = [&](const std::string& url, std::string& buffer, int& httpcode) -> CURLcode
 			{
 				CURL* pCurl = curl_easy_init();
 
@@ -37,20 +37,24 @@ struct FASubmission
 				curl_easy_setopt(pCurl, CURLOPT_WRITEDATA, &buffer);
 				CURLcode code = curl_easy_perform(pCurl);
 
+				if (code == CURLE_OK)
+					curl_easy_getinfo(pCurl, CURLINFO_RESPONSE_CODE, &httpcode);
+
 				curl_easy_cleanup(pCurl);
 				return code;
 			};
 
 			std::string buffer;
+			int httpcode = 0;
 
-			if (auto err = curlDownload(urlbuff, buffer)) {
+			if (auto err = curlDownload(urlbuff, buffer, httpcode)) {
 				log_console(xlog::LogLevel::warning, "Download error! %s! retrying...\n", curl_easy_strerror(err));
 				continue;
 			}
 
-			if (buffer == "FAExport encounter an internal error") {
-				std::printf("\n");
-				log_console(xlog::LogLevel::warning, "download error! retrying...\n");
+			if (httpcode != 200)
+			{
+				log_console(xlog::LogLevel::warning, "download error! retrying...");
 				continue;
 			}
 

@@ -31,6 +31,7 @@ public:
 	virtual bool Argument(arg_t& arg);
 
 	virtual void Action(arg_t& arg) = 0;
+	bool ValidUser(std::string user);
 
 public:
 	const std::wstring m_path;

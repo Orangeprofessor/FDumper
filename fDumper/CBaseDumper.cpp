@@ -89,6 +89,33 @@ bool CBaseDumper::ReadArgs(arg_t& arg)
 	return true;
 }
 
+bool CBaseDumper::ValidUser(std::string user)
+{
+	char urlbuff[200];
+	sprintf_s(urlbuff, "%s/user/%s.json", m_api.c_str(), user.c_str());
+
+	int httpcode; std::string temp;
+	CURL* pCurl = curl_easy_init();
+
+	curl_easy_setopt(pCurl, CURLOPT_URL, urlbuff);
+	curl_easy_setopt(pCurl, CURLOPT_WRITEFUNCTION, writebuffercallback);
+	curl_easy_setopt(pCurl, CURLOPT_WRITEDATA, &temp);
+	CURLcode code = curl_easy_perform(pCurl);
+
+	if (code == CURLE_OK)
+		curl_easy_getinfo(pCurl, CURLINFO_RESPONSE_CODE, &httpcode);
+	else
+		return curl_easy_cleanup(pCurl), false;
+
+	curl_easy_cleanup(pCurl);
+
+	if (httpcode != 200)
+		return false;
+
+	return true;
+}
+
+
 bool CBaseDumper::Argument(arg_t& arg)
 {
 	std::wstring s = arg.v[arg.i];

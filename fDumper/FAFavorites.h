@@ -12,14 +12,14 @@ public:
 	virtual bool Argument(arg_t& arg) override;
 	virtual void Action(arg_t& arg) override;
 
-	void Download();
-
+	int Download();
+	
 private:
 	std::vector<FASubmission> GetFavoritesGallery();
 
-	void DownloadInternal(std::vector<FASubmission> gallery);
+	int DownloadInternal(std::vector<FASubmission> gallery);
 
-	static CURLcode ThreadedImageDownload(int threadID, FASubmission submission, std::wstring path, ThreadLock<int>* progress);
+	static CURLcode ThreadedImageDownload(int threadID, FASubmission submission, std::wstring path, ThreadLock<int>* progress, ThreadLock<int>* consolelock);
 
 protected:
 	int m_rating = 0;

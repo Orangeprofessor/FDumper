@@ -54,12 +54,11 @@ bool FDumper::ParseCommand(std::wstring cmd)
 		CFAUpdater updater;
 		updater.Main(argc, argv);
 	}
-	// Not yet!
-	/*else if (!mode.compare(L"favorites"))
+	else if (!mode.compare(L"favorites"))
 	{
 		CFAFavorites favorites;
 		favorites.Main(argc, argv);
-	}*/
+	}
 	else if (!mode.compare(L"exit"))
 	{
 		return true;

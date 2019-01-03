@@ -62,6 +62,13 @@ void CFADumper::Action(arg_t & arg)
 		m_savedir.erase(); m_savedir.assign(m_path);
 
 		m_uHandle = WstringToAnsi(arg.v[arg.i]);
+
+		if (!ValidUser(m_uHandle))
+		{
+			log_console(xlog::LogLevel::error, "User '%s' doesn't exist!\n", m_uHandle.c_str());
+			continue;
+		}
+
 		CreateDirectoryW((m_savedir + L"\\" + AnsiToWstring(m_uHandle)).c_str(), NULL);
 
 		char jsonbuff[80];
@@ -78,18 +85,23 @@ void CFADumper::Action(arg_t & arg)
 
 		ofs.close();
 
-		Download();
+		log_console(xlog::LogLevel::critical, "Processing user gallery '%s'\n", m_uHandle.c_str());
+
+		if (Download())
+		{
+			log_console(xlog::LogLevel::error, "Errors while processing user gallery '%s'\n", m_uHandle.c_str());
+			continue;
+		}
 
 		log_console(xlog::LogLevel::critical, "Finished processing user gallery '%s'\n", m_uHandle.c_str());
 	}
 }
 
-void CFADumper::Download()
+int CFADumper::Download()
 {
 	m_savedir += L"\\" + AnsiToWstring(m_uHandle);
 	CreateDirectoryW(m_savedir.c_str(), NULL);
 
-	log_console(xlog::LogLevel::critical, "Processing user gallery '%s'\n", m_uHandle.c_str());
 	log_console(xlog::LogLevel::normal, "Dumping gallery '%s' to '%s'\n", m_uHandle.c_str(), WstringToAnsi(m_savedir).c_str());
 
 	if (m_gallery == faGalleryFlags::SCRAPS_ONLY)
@@ -98,16 +110,40 @@ void CFADumper::Download()
 
 		CreateDirectoryW(m_savedir.c_str(), NULL);
 
-		auto fullgallery = GetScrapGallery();
+		auto scrapgallery = GetScrapGallery();
+
+		if (scrapgallery.empty())
+		{
+			log_console(xlog::LogLevel::warning, "Nothing to download!\n", m_uHandle.c_str());
+			return 0;
+		}
 
 		// download
-		DownloadInternal(fullgallery);
+		if (int failed = DownloadInternal(scrapgallery))
+		{
+			// nonzero number of failed downloads, something went wrong, lets tell the user
+			log_console(xlog::LogLevel::error, "%d submissions failed to download, try updating the gallery to redownload the submissions\n", failed);
+			return -1;
+		}
+
+		return 0;
 	}
 
 	auto fullgallery = GetMainGallery();
 
-	if (!fullgallery.empty())
-		DownloadInternal(fullgallery);
+	if (fullgallery.empty())
+	{
+		log_console(xlog::LogLevel::warning, "Nothing to download!\n", m_uHandle.c_str());
+		return 0;
+	}
+
+	// download
+	if (int failed = DownloadInternal(fullgallery))
+	{
+		// nonzero number of failed downloads, something went wrong, lets tell the user
+		log_console(xlog::LogLevel::error, "%d submissions failed to download, try updating the gallery to redownload the submissions\n", failed);
+		return -1;
+	}
 
 	if (m_gallery != faGalleryFlags::NO_SCRAPS)
 	{
@@ -116,9 +152,22 @@ void CFADumper::Download()
 		m_savedir += L"\\" + std::wstring(L"Scraps");
 		CreateDirectoryW(m_savedir.c_str(), NULL);
 
-		if (!scrapgallery.empty())
-			DownloadInternal(scrapgallery);
+		if (scrapgallery.empty())
+		{
+			log_console(xlog::LogLevel::warning, "Nothing to download!\n", m_uHandle.c_str());
+			return 0;
+		}
+
+		// download
+		if (int failed = DownloadInternal(scrapgallery))
+		{
+			// nonzero number of failed downloads, something went wrong, lets tell the user
+			log_console(xlog::LogLevel::error, "%d submissions failed to download, try updating the gallery to redownload the submissions\n", failed);
+			return -1;
+		}
 	}
+
+	return 0;
 }
 
 std::vector<FASubmission> CFADumper::GetMainGallery()
@@ -126,7 +175,7 @@ std::vector<FASubmission> CFADumper::GetMainGallery()
 	std::vector<FASubmission> gallery;
 	std::vector<int> tempIDs;
 
-	auto curlDownload = [&](const std::string& url, std::string& buffer) -> CURLcode
+	auto curlDownload = [&](const std::string& url, std::string& buffer, int& httpcode) -> CURLcode
 	{
 		CURL* pCurl = curl_easy_init();
 
@@ -135,11 +184,41 @@ std::vector<FASubmission> CFADumper::GetMainGallery()
 		curl_easy_setopt(pCurl, CURLOPT_WRITEDATA, &buffer);
 		CURLcode code = curl_easy_perform(pCurl);
 
+		if (code == CURLE_OK)
+			curl_easy_getinfo(pCurl, CURLINFO_RESPONSE_CODE, &httpcode);
+
 		curl_easy_cleanup(pCurl);
 		return code;
 	};
 
+	// lil spinny spin spin (idk why i do this)
+	auto terminate = std::make_unique<bool>(false);
+
+	ctpl::thread_pool spinner(1);
+	auto spinny = [&](int id, std::unique_ptr<bool>* term) -> void {
+		while (!(*term->get()) == true)
+		{
+			static int pos = 0;
+			char cursor[4] = { '/','-','\\','|' };
+			printf("%c\b", cursor[pos]);
+			std::cout.flush();
+			pos = (pos + 1) % 4;
+			std::this_thread::sleep_for(std::chrono::milliseconds(50));
+		}
+	};
+
+	auto startspin = [&]() -> void {
+		*terminate = false;
+		spinner.push(spinny, &terminate);
+	};
+
+	auto stopspin = [&]() -> void {
+		*terminate = true;
+		spinner.stop();
+	};
+
 	log_console(xlog::LogLevel::normal, "Downloading submission pages...");
+	startspin();
 
 	int curpage = 1;
 	while (true)
@@ -153,16 +232,21 @@ std::vector<FASubmission> CFADumper::GetMainGallery()
 		}
 
 		std::string buffer;
+		int httpcode = 0;
 
-		if (CURLcode err = curlDownload(urlbuff, buffer))
+		if (CURLcode err = curlDownload(urlbuff, buffer, httpcode))
 		{
-			log_console(xlog::LogLevel::warning, "Couldn't download page %d!, %s, retrying...\n", curpage, curl_easy_strerror(err));
+			stopspin();
+			log_console(xlog::LogLevel::warning, "\nCouldn't download page %d!, %s, retrying...", curpage, curl_easy_strerror(err));
+			startspin();
 			continue;
 		}
 
-		if (buffer == "FAExport encounter an internal error") {
-			std::printf("\n");
-			log_console(xlog::LogLevel::warning, "download error! retrying...\n");
+		if (httpcode != 200)
+		{
+			stopspin();
+			log_console(xlog::LogLevel::warning, "\ndownload error! retrying...");
+			startspin();
 			continue;
 		}
 
@@ -195,16 +279,21 @@ std::vector<FASubmission> CFADumper::GetMainGallery()
 			sprintf_s(urlbuff, "%s/user/%s/gallery.json?sfw=1&page=%d", m_api.c_str(), m_uHandle.c_str(), curpage);
 
 			std::string buffer;
+			int httpcode = 0;
 
-			if (CURLcode err = curlDownload(urlbuff, buffer))
+			if (CURLcode err = curlDownload(urlbuff, buffer, httpcode))
 			{
-				log_console(xlog::LogLevel::warning, "Couldn't download page %d!, %s, retrying...\n", curpage, curl_easy_strerror(err));
+				stopspin();
+				log_console(xlog::LogLevel::warning, "\nCouldn't download page %d!, %s, retrying...", curpage, curl_easy_strerror(err));
+				startspin();
 				continue;
 			}
 
-			if (buffer == "FAExport encounter an internal error") {
-				std::printf("\n");
-				log_console(xlog::LogLevel::warning, "download error! retrying...\n");
+			if (httpcode != 200)
+			{
+				stopspin();
+				log_console(xlog::LogLevel::warning, "\ndownload error! retrying...");
+				startspin();
 				continue;
 			}
 
@@ -230,9 +319,14 @@ std::vector<FASubmission> CFADumper::GetMainGallery()
 			return std::find(sfwIDs.begin(), sfwIDs.end(), id) != sfwIDs.end();
 		}), tempIDs.end());
 	}
+
+	stopspin();
 	std::printf("Done!\n");
 
-	log_console(xlog::LogLevel::normal, "%d total images\n", tempIDs.size());
+	log_console(xlog::LogLevel::critical, "%d total images\n", tempIDs.size());
+
+	if (tempIDs.empty())
+		return std::vector<FASubmission>();
 
 	int progress = 1;
 
@@ -242,8 +336,16 @@ std::vector<FASubmission> CFADumper::GetMainGallery()
 
 		log_console(xlog::LogLevel::normal, "Downloading submission data...");
 
+		int width = 35;
+		std::printf("|");
 		int perc = (int)std::ceil((((float)progress / (float)tempIDs.size()) * 100));
-		std::cout << perc << "%\r";
+		int pos = ((float)progress / (float)tempIDs.size()) * width;
+		for (int i = 0; i < width; ++i)
+		{
+			if (i < pos) std::printf("%c", 219);
+			else std::cout << " ";
+		}
+		std::cout << "|" << perc << "%\r";
 		std::cout.flush();
 
 		submission.Setup(m_api);
@@ -263,7 +365,7 @@ std::vector<FASubmission> CFADumper::GetScrapGallery()
 	std::vector<FASubmission> scraps;
 	std::vector<int> tempIDs;
 
-	auto curlDownload = [&](const std::string& url, std::string& buffer) -> CURLcode
+	auto curlDownload = [&](const std::string& url, std::string& buffer, int& httpcode) -> CURLcode
 	{
 		CURL* pCurl = curl_easy_init();
 
@@ -272,13 +374,44 @@ std::vector<FASubmission> CFADumper::GetScrapGallery()
 		curl_easy_setopt(pCurl, CURLOPT_WRITEDATA, &buffer);
 		CURLcode code = curl_easy_perform(pCurl);
 
+		if (code == CURLE_OK)
+			curl_easy_getinfo(pCurl, CURLINFO_RESPONSE_CODE, &httpcode);
+
 		curl_easy_cleanup(pCurl);
 		return code;
+	};
+
+	// lil spinny spin spin (idk why i do this)
+	auto terminate = std::make_unique<bool>(false);
+
+	ctpl::thread_pool spinner(1);
+	auto spinny = [&](int id, std::unique_ptr<bool>* term) -> void {
+		while (!(*term->get()) == true)
+		{
+			static int pos = 0;
+			char cursor[4] = { '/','-','\\','|' };
+			printf("%c\b", cursor[pos]);
+			std::cout.flush();
+			pos = (pos + 1) % 4;
+			std::this_thread::sleep_for(std::chrono::milliseconds(50));
+		}
+	};
+
+	auto startspin = [&]() -> void {
+		*terminate = false;
+		spinner.push(spinny, &terminate);
+	};
+
+	auto stopspin = [&]() -> void {
+		*terminate = true;
+		spinner.stop();
 	};
 
 
 	int curpage = 1;
 	log_console(xlog::LogLevel::normal, "Downloading scrap submission pages...");
+	startspin();
+
 	while (true)
 	{
 		char urlbuff[200] = {};
@@ -291,16 +424,21 @@ std::vector<FASubmission> CFADumper::GetScrapGallery()
 		}
 
 		std::string buffer;
+		int httpcode = 0;
 
-		if (CURLcode err = curlDownload(urlbuff, buffer))
+		if (CURLcode err = curlDownload(urlbuff, buffer, httpcode))
 		{
-			log_console(xlog::LogLevel::warning, "Couldn't download page %d!, %s, retrying...", curpage, curl_easy_strerror(err));
+			stopspin();
+			log_console(xlog::LogLevel::warning, "\nCouldn't download page %d!, %s, retrying...", curpage, curl_easy_strerror(err));
+			startspin();
 			continue;
 		}
 
-		if (buffer == "FAExport encounter an internal error") {
-			std::printf("\n");
-			log_console(xlog::LogLevel::warning, "download error! retrying...\n");
+		if (httpcode != 200)
+		{
+			stopspin();
+			log_console(xlog::LogLevel::warning, "\ndownload error! retrying...\n");
+			startspin();
 			continue;
 		}
 
@@ -333,18 +471,22 @@ std::vector<FASubmission> CFADumper::GetScrapGallery()
 			char urlbuff[200] = {};
 			sprintf_s(urlbuff, "%s/user/%s/scraps.json?sfw=1&page=%d", m_api.c_str(), m_uHandle.c_str(), curpage);
 
-
 			std::string buffer;
+			int httpcode = 0;
 
-			if (CURLcode err = curlDownload(urlbuff, buffer))
+			if (CURLcode err = curlDownload(urlbuff, buffer, httpcode))
 			{
-				log_console(xlog::LogLevel::warning, "Couldn't download page %d!, %s, retrying...\n", curpage, curl_easy_strerror(err));
+				startspin();
+				log_console(xlog::LogLevel::warning, "\nCouldn't download page %d!, %s, retrying...\n", curpage, curl_easy_strerror(err));
+				stopspin();
 				continue;
 			}
 
-			if (buffer == "FAExport encounter an internal error") {
-				std::printf("\n");
-				log_console(xlog::LogLevel::warning, "download error! retrying...\n");
+			if (httpcode != 200)
+			{
+				startspin();
+				log_console(xlog::LogLevel::warning, "\ndownload error! retrying...\n");
+				stopspin();
 				continue;
 			}
 
@@ -359,7 +501,6 @@ std::vector<FASubmission> CFADumper::GetScrapGallery()
 				sfwIDs.push_back(subID);
 			}
 
-
 			auto docsize = doc.Size();
 			if (docsize < 72)
 				break;
@@ -373,10 +514,13 @@ std::vector<FASubmission> CFADumper::GetScrapGallery()
 		}), tempIDs.end());
 	}
 
+	stopspin();
 	std::printf("Done!\n");
 
+	log_console(xlog::LogLevel::critical, "%d total images\n", tempIDs.size());
 
-	log_console(xlog::LogLevel::normal, "%d total images\n", tempIDs.size());
+	if (tempIDs.empty())
+		return std::vector<FASubmission>();
 
 	int progress = 1;
 
@@ -386,8 +530,16 @@ std::vector<FASubmission> CFADumper::GetScrapGallery()
 
 		log_console(xlog::LogLevel::normal, "Downloading scrap submission data...");
 
+		int width = 35;
+		std::printf("|");
 		int perc = (int)std::ceil((((float)progress / (float)tempIDs.size()) * 100));
-		std::cout << perc << "%\r";
+		int pos = ((float)progress / (float)tempIDs.size()) * width;
+		for (int i = 0; i < width; ++i)
+		{
+			if (i < pos) std::printf("%c", 219);
+			else std::cout << " ";
+		}
+		std::cout << "|" << perc << "%\r";
 		std::cout.flush();
 
 		submission.Setup(m_api);
@@ -405,34 +557,55 @@ std::vector<FASubmission> CFADumper::GetScrapGallery()
 int CFADumper::DownloadInternal(std::vector<FASubmission> gallery)
 {
 	ThreadLock<int> progress;
-	progress.operator=(0);
+	ThreadLock<int> genericmut;
+	progress.operator=(1);
 
 	ctpl::thread_pool threads(std::thread::hardware_concurrency());
+	std::vector<std::shared_future<CURLcode>> threadresults;
 
 	for (auto submission : gallery) {
-		threads.push(ThreadedImageDownload, submission, m_savedir, &progress);
+		auto result = threads.push(ThreadedImageDownload, submission, m_savedir, &progress, &genericmut);
+		threadresults.push_back(result.share());
 	}
 
 	int perc = 0;
 	while (threads.size() != threads.n_idle() || perc < 100)
 	{
-		log_console(xlog::LogLevel::normal, "Downloading submissions...");
+		if (perc < 100)
+		{
+			log_console(xlog::LogLevel::normal, "Downloading submissions...");
 
-		float size = (float)gallery.size();
-		float progsize = (float)progress.operator int();
+			int width = 35;
+			std::printf("|");
 
-		perc = (progsize / size) * 100;
-	
-		std::cout << perc << "%\r";
-		std::cout.flush();
+			float size = (float)gallery.size();
+			float progsize = (float)progress.operator int();
+			perc = (int)std::ceil(((progsize / size) * 100));
+			int pos = (progress / size) * width;
+			for (int i = 0; i < width; ++i)
+			{
+				if (i < pos) std::printf("%c", 219);
+				else std::cout << " ";
+			}
+			std::cout << "|" << perc << "%\r";
+			std::cout.flush();
+		}
 	}
 
 	std::printf("\n");
 
-	return 0;
+	int faileddownloads = 0;
+
+	for (auto& code : threadresults)
+	{
+		if (code.get() != CURLE_OK)
+			++faileddownloads;
+	}
+
+	return faileddownloads;
 }
 
-CURLcode CFADumper::ThreadedImageDownload(int threadID, FASubmission submission, std::wstring path, ThreadLock<int>* progress)
+CURLcode CFADumper::ThreadedImageDownload(int threadID, FASubmission submission, std::wstring path, ThreadLock<int>* progress, ThreadLock<int>* consolelock)
 {
 	auto curlDownload = [&](const std::string& url, const std::wstring& path) -> CURLcode
 	{
@@ -464,26 +637,26 @@ CURLcode CFADumper::ThreadedImageDownload(int threadID, FASubmission submission,
 
 	std::wstring savedir = path + L"\\" + AnsiToWstring(filename);
 
-	CURLcode returncode;
-
-	for (int i = 5; i > 1; --i)
-	{
-		returncode = curlDownload(link, savedir);
-
-		if (returncode == CURLE_OK)
-			break;
-
-		// Gotta be grammar correct
-		if (i == 1)
-			log_console(xlog::LogLevel::warning, "\nDownload error for '%s', %d retry left\n", truncate(submission.GetCDNFilename(), 21).c_str(), i);
-		else
-			log_console(xlog::LogLevel::warning, "\nDownload error for '%s', %d retries left\n", truncate(submission.GetCDNFilename(), 21).c_str(), i);
-	}
+	CURLcode returncode = curlDownload(link, savedir);
 
 	if (returncode != CURLE_OK)
-		log_console(xlog::LogLevel::error, "\nFailed to download '%s', %s!\n", truncate(submission.GetCDNFilename(), 21).c_str(), curl_easy_strerror(returncode));
+	{
+		consolelock->execute([&](int s) {
+			log_console(xlog::LogLevel::error, "\nFailed to download '%s', %s!\n", truncate(submission.GetCDNFilename(), 21).c_str(), curl_easy_strerror(returncode));
+		});
 
-	int curprogress = progress->operator int(); curprogress++;
+		// Delete the file so we can tell the user to update later
+		DeleteFile(savedir.c_str());
+	}
+
+	// temporarily unlock & lock mutex for progress bar
+	int curprogress = progress->operator int();
+
+	// increment that shit
+	curprogress++;
+
+	// unlock & lock mutex for progress bar again and assign the new value
 	progress->operator=(curprogress);
+
 	return returncode;
 }

@@ -33,6 +33,19 @@ Updates images in dumped gallery
 supported flags:
 
 * `--all-users` Update all galleries in folder (don't specify a user for this one)
+* `--no-favorites` Don't update favorites for gallery
+* `--favorites-only` Only update favorites for gallery
+
+### Favorites dumper
+
+Dumps a user's favorites to disk
+
+	favorites [flags] [user1] [user2] ...
+
+supported flags:
+
+* `--sfw-only` Only dump SFW submissions.
+* `--nsfw-only` Only dump NSFW submissions.
 
 
 ## Gallery dump tutorial
@@ -57,8 +70,8 @@ Processing user gallery 'strange-fox'
 Dumping gallery 'strange-fox' to 'C:\Users\Orangeprofessor\Desktop\CoolArtists\strange-fox'
 Downloading scrap submission pages...Done!
 23 total images
-Downloading scrap submission data...[=============================================] 100%
-Downloading submissions...[=============================================] 100% (72134-1142273564.stra...)
+Downloading submission data...|███████████████████████████████████|100%
+Downloading submissions...|███████████████████████████████████|100%
 Finished processing user gallery 'strange-fox'
 ~~~
   
@@ -92,7 +105,37 @@ Downloading new scrap submission pages...Done!
 Scanning images in scrap folder for strange-fox...Done!
 Comparing new and legacy submission lists...Done!
 3 submission(s) not found!
-Downloading new scrap submission data...[=============================================] 100%
-Downloading new submissions...[=============================================] 100% (7411290-1329367100.st...)
+Downloading submission data...|███████████████████████████████████|100%
+Downloading submissions...|███████████████████████████████████|100%
 Finished processing gallery 'strange-fox'
 ~~~
+
+
+## Gallery update tutorial
+
+* Download the latest version of FDumper-cli from the releases section
+* Launch it
+* Use the 'favorites' mode, a dialog box will appear asking for a folder to dump the gallery in
+* Patiently wait while FDumper-cli downloads your furry art
+
+Example commands:
+~~~text
+FDumper> favorites --sfw-only orangeprofessor
+~~~
+
+If the amount of favorites exceeds 300 the program will warm you and ask for confirmation to continue
+
+Example output:
+~~~text
+FDumper v3.0.0 by Orangeprofessor!
+See the readme for more info
+FDumper> favorites --sfw-only orangeprofessor
+Processing user favorites 'orangeprofessor'
+Dumping orangeprofessor's favorites to 'F:\testing\orangeprofessor\favorites'
+Downloading favorites pages...Done!
+61 total images
+Downloading submission data...|███████████████████████████████████|100%
+Downloading submissions...|███████████████████████████████████|100%
+Finished processing user favorites 'orangeprofessor'
+~~~
+
