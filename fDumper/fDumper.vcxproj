@@ -163,6 +163,16 @@
   <ItemGroup>
     <ClInclude Include="CBaseDumper.h" />
     <ClInclude Include="config.h" />
+    <ClInclude Include="control\Button.hpp" />
+    <ClInclude Include="control\ComboBox.hpp" />
+    <ClInclude Include="control\Control.hpp" />
+    <ClInclude Include="control\Dialog.hpp" />
+    <ClInclude Include="control\EditBox.hpp" />
+    <ClInclude Include="control\ListView.hpp" />
+    <ClInclude Include="control\Message.hpp" />
+    <ClInclude Include="control\ProgressBar.hpp" />
+    <ClInclude Include="control\StatusBar.hpp" />
+    <ClInclude Include="control\Window.hpp" />
     <ClInclude Include="ctpl_stl.hpp" />
     <ClInclude Include="dumphandler.h" />
     <ClInclude Include="FADumper.h" />
@@ -173,6 +183,7 @@
     <ClInclude Include="Log.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="resource.h" />
+    <ClInclude Include="Win32Thunk.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="CBaseDumper.cpp" />
