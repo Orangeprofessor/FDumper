@@ -19,6 +19,7 @@ MainDlg::MainDlg() : Dialog(IDD_MAIN), m_dumperPool(std::thread::hardware_concur
 	m_events[IDC_ADDTOQUEUE] = static_cast<Dialog::fnDlgProc>(&MainDlg::OnUserSubmit);
 	m_events[ID_SETTINGS_DOWNLOADS] = static_cast<Dialog::fnDlgProc>(&MainDlg::OnSettings);
 
+	m_notifs[std::make_pair(NM_RCLICK, IDC_QUEUE)] = static_cast<Dialog::fnDlgProc>(&MainDlg::OnRClickQueueItem);
 	m_notifs[std::make_pair(LVN_INSERTITEM, IDC_QUEUE)] = static_cast<Dialog::fnDlgProc>(&MainDlg::OnAddedToQueue);
 	m_notifs[std::make_pair(NM_CUSTOMDRAW, IDC_QUEUE)] = static_cast<Dialog::fnDlgProc>(&MainDlg::OnQueueCustomDraw);
 
@@ -231,6 +232,20 @@ INT_PTR MainDlg::OnSettings(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPara
 {
 	CEditSavesDlg settings(m_config);
 	return settings.RunModal(hDlg);
+}
+
+INT_PTR MainDlg::OnRClickQueueItem(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
+{
+	auto lpnmitem = (LPNMITEMACTIVATE)lParam;
+
+	auto menu = LoadMenu(GetModuleHandle(NULL), MAKEINTRESOURCE(IDR_QUEUE_MENU));
+
+	POINT cursorpos;
+	GetCursorPos(&cursorpos);
+
+	TrackPopupMenu(menu, TPM_LEFTALIGN, cursorpos.x, cursorpos.y, NULL, hDlg, nullptr);
+
+	return TRUE;
 }
 
 INT_PTR MainDlg::OnQueueCustomDraw(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)

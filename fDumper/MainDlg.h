@@ -29,6 +29,7 @@ private:
 	MSG_HANDLER(OnUserSubmit);
 	MSG_HANDLER(OnAddedToQueue);
 	MSG_HANDLER(OnSettings);
+	MSG_HANDLER(OnRClickQueueItem);
 
 	MSG_HANDLER(OnLoadThumbnails);
 	MSG_HANDLER(OnQueueCustomDraw);
