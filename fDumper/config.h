@@ -6,6 +6,8 @@
 #define CURL_STATICLIB
 
 #pragma comment(lib, "dbghelp.lib")
+#pragma comment(lib, "gdiplus.lib")
+#pragma comment(lib, "comctl32.lib")
 
 #if defined(_DEBUG)
 

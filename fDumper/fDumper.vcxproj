@@ -163,6 +163,7 @@
   <ItemGroup>
     <ClInclude Include="CBaseDumper.h" />
     <ClInclude Include="config.h" />
+    <ClInclude Include="configmgr.h" />
     <ClInclude Include="control\Button.hpp" />
     <ClInclude Include="control\ComboBox.hpp" />
     <ClInclude Include="control\Control.hpp" />
@@ -179,20 +180,21 @@
     <ClInclude Include="FAFavorites.h" />
     <ClInclude Include="FASubmission.h" />
     <ClInclude Include="FAUpdater.h" />
-    <ClInclude Include="FDumper.h" />
     <ClInclude Include="Log.h" />
+    <ClInclude Include="MainDlg.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="Win32Thunk.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="CBaseDumper.cpp" />
+    <ClCompile Include="configmgr.cpp" />
     <ClCompile Include="dumphandler.cpp" />
     <ClCompile Include="FADumper.cpp" />
     <ClCompile Include="FAFavorites.cpp" />
     <ClCompile Include="FAUpdater.cpp" />
     <ClCompile Include="FDumper.cpp" />
-    <ClCompile Include="main.cpp" />
+    <ClCompile Include="MainDlg.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
@@ -204,6 +206,7 @@
     <ResourceCompile Include="fDumper.rc" />
   </ItemGroup>
   <ItemGroup>
+    <Image Include="icon2.ico" />
     <Image Include="smugtails.ico" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

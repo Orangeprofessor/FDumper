@@ -74,7 +74,12 @@ namespace xlog
 	private:
 		Logger()
 		{
-			_output.open("fdumper.log", std::ios::out | std::ios::app);
+			wchar_t temp[MAX_PATH] = {};
+			GetTempPath(MAX_PATH, temp);
+			std::wstring logpath(temp);
+			logpath.append(L"\\FDumper\\fdumper.log");
+
+			_output.open(logpath, std::ios::out | std::ios::app);
 		}
 
 		Logger(const Logger&) = delete;

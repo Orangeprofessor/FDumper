@@ -10,37 +10,28 @@ class Dialog : public Window
 public:
 	typedef INT_PTR(Dialog::*fnDlgProc)(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam);
 
-	typedef std::map<UINT, fnDlgProc> mapMsgProc;
-	typedef std::map<WORD, fnDlgProc> mapCtrlProc;
+	using mapMsgProc = std::map<UINT, fnDlgProc>;
+	using mapCtrlProc = std::map<WORD, fnDlgProc>;
+	using mapNotifyProc = std::map<std::pair<UINT, UINT_PTR>, fnDlgProc>;
 
 public:
 	Dialog(int dialogID)
 		: _dialogID(dialogID)
 	{
-		_messages[WM_INITDIALOG] = &Dialog::OnInit;
-		_messages[WM_COMMAND] = &Dialog::OnCommand;
-		_messages[WM_CLOSE] = &Dialog::OnClose;
+		m_messages[WM_INITDIALOG] = &Dialog::OnInit;
+		m_messages[WM_COMMAND] = &Dialog::OnCommand;
+		m_messages[WM_CLOSE] = &Dialog::OnClose;
+		m_messages[WM_NOTIFY] = &Dialog::OnNotify;
 	}
 
-	/// <summary>
-	/// Run dialog as modal window
-	/// </summary>
-	/// <param name="parent">Parent window.</param>
-	/// <returns>TRUE on success, FALSE otherwise</returns>
 	virtual INT_PTR RunModal(HWND parent = NULL)
 	{
-		// Stupid std::function and std::bind don't support __stdcall
-		// Had to do this idiotic workaround
+		// std::function and std::bind don't support __stdcall
+		// so just do the ASM yourself lol
 		Win32Thunk<DLGPROC, Dialog> dlgProc(&Dialog::DlgProc, this);
 		return DialogBoxW(NULL, MAKEINTRESOURCEW(_dialogID), parent, dlgProc.GetThunk());
 	}
 
-	/// <summary>
-	/// Run dialog as modeless window
-	/// </summary>
-	/// <param name="parent">Parent window</param>
-	/// <param name="accelID">Accelerator ID to use</param>
-	/// <returns>TRUE on success, FALSE otherwise</returns>
 	virtual INT_PTR RunModeless(HWND parent = NULL, int accelID = 0)
 	{
 		MSG msg = { 0 };
@@ -69,10 +60,6 @@ public:
 
 protected:
 
-	/// <summary>
-	/// Close dialog properly
-	/// </summary>
-	/// <returns>status</returns>
 	INT_PTR CloseDialog()
 	{
 		if (_modeless)
@@ -86,51 +73,50 @@ protected:
 		return TRUE;
 	}
 
-	/// <summary>
-	/// Dialog message proc
-	/// </summary>
 	INT_PTR DlgProc(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 	{
-		if (_messages.count(message))
-			return (this->*_messages[message])(hDlg, message, wParam, lParam);
+		if (m_messages.count(message))
+			return (this->*m_messages[message])(hDlg, message, wParam, lParam);
 
 		return FALSE;
 	}
 
-	/// <summary>
-	/// WM_INITDIALOG handler
-	/// </summary>
 	virtual INT_PTR OnInit(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 	{
 		m_hwnd = hDlg;
 		return TRUE;
 	}
 
-	/// <summary>
-	/// WM_COMMAND handler
-	/// </summary>
 	virtual INT_PTR OnCommand(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 	{
-		if (_events.count(LOWORD(wParam)))
-			return (this->*_events[LOWORD(wParam)])(hDlg, message, wParam, lParam);
+		if (m_events.count(LOWORD(wParam)))
+			return (this->*m_events[LOWORD(wParam)])(hDlg, message, wParam, lParam);
 
-		if (_events.count(HIWORD(wParam)))
-			return (this->*_events[HIWORD(wParam)])(hDlg, message, wParam, lParam);
+		if (m_events.count(HIWORD(wParam)))
+			return (this->*m_events[HIWORD(wParam)])(hDlg, message, wParam, lParam);
 
 		return FALSE;
 	}
 
-	/// <summary>
-	/// WM_CLOSE handler
-	/// </summary>
+	virtual INT_PTR OnNotify(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
+	{
+		auto notif = (LPNMHDR)lParam;
+
+		if (m_notifs.count(std::make_pair(notif->code, notif->idFrom)))
+			return (this->*m_notifs[std::make_pair(notif->code, notif->idFrom)])(hDlg, message, wParam, lParam);
+
+		return FALSE;
+	}
+
 	virtual INT_PTR OnClose(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 	{
 		return CloseDialog();
 	}
 
 public:
-	mapMsgProc _messages;       // Message handlers
-	mapCtrlProc _events;        // Event handlers
+	mapMsgProc m_messages;      // Message handlers
+	mapCtrlProc m_events;       // Event handlers
+	mapNotifyProc m_notifs;		// Handlers just for WM_NOTIFY
 	int _dialogID;              // Dialog resource ID
 	bool _modeless = false;     // Modeless dialog
 };

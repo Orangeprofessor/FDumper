@@ -5,42 +5,84 @@
 
 #include "Log.h"
 
+#include "configmgr.h"
+
 #include "../contrib/curl/curl.h"
 #include "../contrib/rapidjson/document.h"
 
 #include <mutex>
 
-struct arg_t
+
+enum faRatingFlags : int
 {
-	const int c;
-	wchar_t** v;
-	int i;
+	ALL_RATINGS = 0,
+	NSFW_ONLY,
+	SFW_ONLY
+};
+
+enum faGalleryFlags : int
+{
+	MAIN = (1 << 0),
+	SCRAPS = (1 << 1),
+	FAVORITES = (1 << 2)
+};
+
+struct DownloadContext
+{
+	DownloadContext() {
+		memset(this, 0, sizeof(*this));
+	}
+
+	int gallery;
+	faRatingFlags ratings;
+	std::string	username;
+	const std::wstring path;
+};
+
+#define MSG_SETCOLOR (WM_USER + 0x420)
+#define MSG_LOADTHUMBNAILS (WM_USER + 0x666)
+
+struct cColors {
+	COLORREF cf;
+	int id;
+};
+
+struct faData {
+	int id;
+	std::string title;
+	std::string thumbnailURL;
+};
+
+struct thumbnailData {
+	std::wstring workingdir;
+	std::vector<faData> data;
 };
 
 class CBaseDumper
 {
 public:
+	CBaseDumper(ConfigMgr& config) : m_config(config) {}
 	virtual ~CBaseDumper() {}
 
-	void Main(const int argc, wchar_t* argv[]);
-	virtual void Process(arg_t& arg);
+	void Main(const DownloadContext& ctx);
+	virtual int Action(const DownloadContext& ctx) = 0;
 
-	virtual void PrintDescription() = 0;
-
-	bool ReadArgs(arg_t& arg);
-	virtual bool Argument(arg_t& arg);
-
-	virtual void Action(arg_t& arg) = 0;
 	bool ValidUser(std::string user);
+	std::pair<int, int> ParseGalleryCfg(const std::wstring& path);
+	void CreateGalleryCfg(const std::wstring& path, int rating, int gallery);
 
 public:
-	const std::wstring m_path;
-	std::string m_api;
+	ConfigMgr& m_config;
 };
 
 template<typename T>
 class ThreadLock
 {
+public:
+	ThreadLock() {}
+	ThreadLock(const ThreadLock&) = delete;
+	ThreadLock& operator=(ThreadLock const&) = delete;
+
 public:
 	ThreadLock& operator=(const T& t) {
 		std::lock_guard<std::mutex> lock(m_mutex);
@@ -56,6 +98,7 @@ public:
 		std::lock_guard<std::mutex> lock(m_mutex);
 		callback(m_protected);
 	}
+
 private:
 	mutable std::mutex m_mutex;
 	T m_protected{};
@@ -83,25 +126,4 @@ static std::string WstringToAnsi(const std::wstring& input, DWORD locale = CP_AC
 	char buf[2048] = { 0 };
 	WideCharToMultiByte(locale, 0, input.c_str(), (int)input.length(), buf, ARRAYSIZE(buf), nullptr, nullptr);
 	return buf;
-}
-
-static void log_console(xlog::LogLevel::e level, const char* format, ...)
-{
-	va_list args;
-	va_start(args, format);
-	xlog::Logger::Instance().DoLogV(level, format, args);
-	va_end(args);
-
-	va_start(args, format);
-	char buff[1024] = {};
-	vsprintf_s(buff, format, args);
-	va_end(args);
-	
-	static const unsigned int colors[] = {
-		4, 12, 2, 6, 7, 7 
-	};
-
-	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), colors[level]);
-	std::printf(buff);
-	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), 15);
 }

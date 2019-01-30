@@ -1,7 +1,7 @@
 #pragma once
 
 #include "../pch.h"
-#include <libda3m0n\Misc\Thunk.hpp>
+#include "../Win32Thunk.hpp"
 #include <string>
 #include <map>
 

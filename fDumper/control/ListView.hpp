@@ -43,12 +43,30 @@ namespace ctrl
 			return pos;
 		}
 
+		virtual int AddImage(const std::wstring& text)
+		{
+			LVITEMW lvi = { 0 };
+
+			lvi.mask = LVIF_TEXT | LVIF_IMAGE;
+
+			lvi.pszText = (LPWSTR)text.c_str();
+			lvi.cchTextMax = static_cast<int>(text.length()) + 1;
+			lvi.iItem = lvi.iImage = ListView_GetItemCount(m_hwnd);
+		
+			return ListView_InsertItem(m_hwnd, &lvi);
+		}
+
 		virtual std::wstring itemText(int idx, int iSubItem = 0)
 		{
 			wchar_t buf[256] = { 0 };
 			ListView_GetItemText(m_hwnd, idx, iSubItem, buf, ARRAYSIZE(buf));
 
 			return buf;
+		}
+
+		virtual void setText(const std::wstring& text, int idx, int iSubItem = 0)
+		{
+			ListView_SetItemText(m_hwnd, idx, iSubItem, (LPWSTR)text.c_str());
 		}
 
 		virtual inline void RemoveItem(int idx) { ListView_DeleteItem(m_hwnd, idx); }

@@ -1,74 +1,64 @@
 #include "pch.h"
 
-#include "FDumper.h"
-#include "FADumper.h"
-#include "FAUpdater.h"
-#include "FAFavorites.h"
+#include "config.h"
 
-void FDumper::Start(std::wstring cmd)
+#include "../contrib/curl/curl.h"
+#include "dumphandler.h"
+
+#include "CBaseDumper.h"
+#include "MainDlg.h"
+
+#include <gdiplus.h>
+
+int DumpNotifier(const wchar_t* path, void* context, PEXCEPTION_POINTERS expt, bool success)
 {
-	if (!cmd.empty())
-	{
-		ParseCommand(cmd);
-		return;
-	}
+	xlog::Fatal("Unhandled exception 0x%08x at 0x%08x", expt->ExceptionRecord->ExceptionCode, expt->ExceptionRecord->ExceptionAddress);
+	std::wstring errmsg = L"Oopsie woopsie a widdle fuckie wuckie! Dump file saved at '" + std::wstring(path) + L"'";
+	std::wstring title = L"Yikes! That wasn't supposed to happen!";
+	MessageBoxW(GetActiveWindow(), errmsg.c_str(), title.c_str(), MB_OK | MB_ICONERROR);
 
-	int argc = 0;
-	auto pCmdLine = GetCommandLineW();
-	auto argv = CommandLineToArgvW(pCmdLine, &argc);
-
-	WaitForCommand();
+	return 0;
 }
 
-void FDumper::WaitForCommand()
+void GetOSData()
 {
-	while (true)
-	{
-		std::string command;
+	wchar_t winverbuff[100] = {};
+	DWORD dwsize = 100;
 
-		std::printf("FDumper> ");
-		std::getline(std::cin, command);
+	RegGetValue(HKEY_LOCAL_MACHINE, L"Software\\Microsoft\\Windows NT\\CurrentVersion",
+		L"BuildLabEx", RRF_RT_REG_SZ, NULL, winverbuff, &dwsize);
 
-		if (command.empty())
-			continue;
-
-		if (ParseCommand(AnsiToWstring(command)))
-			break;
-	}
+	xlog::Critical("Started on Windows %s", WstringToAnsi(winverbuff).c_str());
 }
 
-bool FDumper::ParseCommand(std::wstring cmd)
+int APIENTRY wWinMain(HINSTANCE /*hInstance*/, HINSTANCE /*hPrevInstance*/, LPWSTR /*lpCmdLine*/, int /*nCmdShow*/)
 {
-	int argc = 0;
-	auto argv = CommandLineToArgvW(cmd.c_str(), &argc);;
+	wchar_t temp[MAX_PATH] = {};
+	GetTempPath(MAX_PATH, temp);
 
-	std::wstring mode = argv[0];
+	std::wstring workingpath(temp);
+	workingpath.append(L"FDumper\\");
 
-	if (!mode.compare(L"dump"))
-	{
-		CFADumper dumper;
-		dumper.Main(argc, argv);
-	}
-	else if (!mode.compare(L"update"))
-	{
-		CFAUpdater updater;
-		updater.Main(argc, argv);
-	}
-	else if (!mode.compare(L"favorites"))
-	{
-		CFAFavorites favorites;
-		favorites.Main(argc, argv);
-	}
-	else if (!mode.compare(L"exit"))
-	{
-		return true;
-	}
-	else
-	{
-		log_console(xlog::LogLevel::error,
-			"Invalid command!\n"
-			"See the readme for more info\n");
-	}
+	std::filesystem::create_directory(workingpath);
 
-	return false;
+	GetOSData();
+
+	dump::DumpHandler::Instance().CreateWatchdog(workingpath, dump::CreateFullDump, &DumpNotifier);
+
+	std::filesystem::create_directory(workingpath + L"thumbs");
+
+	curl_global_init(CURL_GLOBAL_ALL);
+
+	Gdiplus::GdiplusStartupInput gdiplusStartupInput;
+	ULONG_PTR gdiplusToken;
+	Gdiplus::GdiplusStartup(&gdiplusToken, &gdiplusStartupInput, NULL);
+
+	MainDlg dlg;
+	dlg.RunModeless();
+
+	Gdiplus::GdiplusShutdown(gdiplusToken);
+
+	curl_global_cleanup();
+
+	return 0;
 }

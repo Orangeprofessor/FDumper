@@ -8,9 +8,9 @@ class CFAUpdater : public CBaseDumper
 {
 	typedef CBaseDumper BaseClass;
 public:
-	virtual void PrintDescription() override;
-	virtual bool Argument(arg_t& arg) override;
-	virtual void Action(arg_t& arg) override;
+	CFAUpdater(ConfigMgr& cfg) : BaseClass(cfg) {}
+
+	virtual int Action(const DownloadContext& ctx) override;
 
 	int Update(std::string artist);
 	void UpdateAll();

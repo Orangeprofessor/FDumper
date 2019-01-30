@@ -8,25 +8,20 @@ class CFADumper : public CBaseDumper
 {
 	typedef CBaseDumper BaseClass;
 public:
+	CFADumper(ConfigMgr& mgr, const int item) : BaseClass(mgr), m_item(item) {}
 
-	virtual void PrintDescription() override;
-	virtual bool Argument(arg_t& arg) override;
-	virtual void Action(arg_t& arg) override;
+	virtual int Action(const DownloadContext& ctx) override;
 
-	int Download();
+	int Download(const DownloadContext& ctx);
 
 private:
-	std::vector<FASubmission> GetMainGallery();
-	std::vector<FASubmission> GetScrapGallery();
+	std::vector<FASubmission> GetMainGallery(const DownloadContext& ctx);
+	std::vector<FASubmission> GetScrapGallery(const DownloadContext& ctx);
 
-	int DownloadInternal(std::vector<FASubmission> gallery);
+	int DownloadInternal(std::vector<FASubmission> gallery, const std::wstring& path, const DownloadContext& ctx);
 
 	static CURLcode ThreadedImageDownload(int threadID, FASubmission submission, std::wstring path, ThreadLock<int>* progress, ThreadLock<int>* consolelock);
 
-protected:
-	std::string m_uHandle;
-	int m_rating = 0;
-	int m_gallery = 0;
-	std::wstring m_savedir;
+	const int m_item;
 };
 

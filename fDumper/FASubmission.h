@@ -2,20 +2,6 @@
 
 #include "CBaseDumper.h"
 
-enum faRatingFlags : int
-{
-	ALL_RATINGS = 0,
-	NSFW_ONLY,
-	SFW_ONLY
-};
-
-enum faGalleryFlags : int
-{
-	ALL_GALLERIES = 0,
-	NO_SCRAPS,
-	SCRAPS_ONLY,
-};
-
 struct FASubmission
 {
 	FASubmission(int submission) : submissionID(submission) {}
@@ -48,13 +34,13 @@ struct FASubmission
 			int httpcode = 0;
 
 			if (auto err = curlDownload(urlbuff, buffer, httpcode)) {
-				log_console(xlog::LogLevel::warning, "Download error! %s! retrying...\n", curl_easy_strerror(err));
+				xlog::Warning("Download error! %s!", curl_easy_strerror(err));
 				continue;
 			}
 
 			if (httpcode != 200)
 			{
-				log_console(xlog::LogLevel::warning, "download error! retrying...");
+				xlog::Warning("Download error! http code %d", httpcode);
 				continue;
 			}
 
@@ -71,6 +57,12 @@ struct FASubmission
 			imagerating->value.GetString() == std::string("General") ? rating = 1 : rating = 2;
 			ratingstr = imagerating->value.GetString();
 
+			auto dateposted = doc.FindMember("posted");
+			date = dateposted->value.GetString();
+
+			auto res = doc.FindMember("resolution");
+			resolution = res->value.GetString();
+
 			break;
 		}
 
@@ -80,6 +72,8 @@ struct FASubmission
 	inline int GetSubmissionID() { return submissionID; }
 	inline std::string GetSubmissionTitle() { return title; }
 	inline int GetRating() { return rating; }
+	inline std::string GetResolution() { return resolution; }
+	inline std::string GetDatePosted() { return date; }
 	inline std::string GetRatingText() { return ratingstr; }
 	inline std::string GetFilename() {
 		return downloadURL.substr(downloadURL.find_last_of("/") + 1);
@@ -92,6 +86,8 @@ private:
 	std::string downloadURL;
 	std::string title;
 	std::string ratingstr;
+	std::string resolution;
+	std::string date;
 	int rating;
 	int submissionID;
 };
