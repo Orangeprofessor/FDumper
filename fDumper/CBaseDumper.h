@@ -41,6 +41,7 @@ struct DownloadContext
 
 #define MSG_SETCOLOR (WM_USER + 0x420)
 #define MSG_LOADTHUMBNAILS (WM_USER + 0x666)
+#define MSG_ADDTODOWNLOADLIST (WM_USER + 0x69)
 
 struct cColors {
 	COLORREF cf;
@@ -56,6 +57,11 @@ struct faData {
 struct thumbnailData {
 	std::wstring workingdir;
 	std::vector<faData> data;
+};
+
+struct downloadListData {
+	int index;
+	FASubmission submission;
 };
 
 class CBaseDumper
@@ -80,8 +86,6 @@ class ThreadLock
 {
 public:
 	ThreadLock() {}
-	ThreadLock(const ThreadLock&) = delete;
-	ThreadLock& operator=(ThreadLock const&) = delete;
 
 public:
 	ThreadLock& operator=(const T& t) {
@@ -98,8 +102,14 @@ public:
 		std::lock_guard<std::mutex> lock(m_mutex);
 		callback(m_protected);
 	}
+	T GetType() const {
+		std::lock_guard<std::mutex> lock(m_mutex);
+		return m_protected;
+	}
 
 private:
+	ThreadLock(const ThreadLock&) = delete;
+	ThreadLock& operator=(ThreadLock const&) = delete;
 	mutable std::mutex m_mutex;
 	T m_protected{};
 };

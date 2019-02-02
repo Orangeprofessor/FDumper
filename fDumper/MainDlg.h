@@ -12,6 +12,7 @@
 
 #include "ctpl_stl.hpp"
 
+#include "FASubmission.h"
 
 class MainDlg : public Dialog
 {
@@ -30,10 +31,12 @@ private:
 	MSG_HANDLER(OnAddedToQueue);
 	MSG_HANDLER(OnSettings);
 	MSG_HANDLER(OnRClickQueueItem);
+	MSG_HANDLER(OnLClickQueueItem);
 
 	MSG_HANDLER(OnLoadThumbnails);
 	MSG_HANDLER(OnQueueCustomDraw);
 	MSG_HANDLER(OnCustomColorChange);
+	MSG_HANDLER(OnAddToDownloadList);
 
 
 	LRESULT ProcessCustomDraw(LPARAM lParam);
@@ -61,6 +64,7 @@ public:
 	ctrl::EditBox m_username;
 	ctrl::Button m_addtoqueue;
 
+	ThreadLock<std::map<int, std::vector<FASubmission>>> m_downloadListData;
 private:
 
 	ctpl::thread_pool m_dumperPool;

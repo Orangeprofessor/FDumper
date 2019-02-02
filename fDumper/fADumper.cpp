@@ -236,7 +236,7 @@ std::vector<FASubmission> CFADumper::GetMainGallery(const DownloadContext& ctx)
 
 	MainDlg::getInstance()->m_userQueue.setText(L"Processing data", m_item, 1);
 
-	ctpl::thread_pool thumbLoader(1);
+	//ctpl::thread_pool thumbLoader(1);
 
 	auto thumbloaderThread = [&](int threadid, std::vector<faData> data, std::string user) -> void
 	{
@@ -272,7 +272,11 @@ std::vector<FASubmission> CFADumper::GetMainGallery(const DownloadContext& ctx)
 		SendMessage(MainDlg::getInstance()->hwnd(), MSG_LOADTHUMBNAILS, NULL, (LPARAM)&thumbdata);
 	};
 
-	thumbLoader.push(thumbloaderThread, tempIDs, ctx.username);
+	//thumbLoader.push(thumbloaderThread, tempIDs, ctx.username);
+
+
+	MainDlg::getInstance()->m_downloadListData.GetType()[m_item].clear();
+
 
 	for (auto IDs : tempIDs)
 	{
@@ -286,12 +290,16 @@ std::vector<FASubmission> CFADumper::GetMainGallery(const DownloadContext& ctx)
 
 		submission.Setup(api);
 
-		auto title = AnsiToWstring(submission.GetSubmissionTitle());
-		auto date = AnsiToWstring(submission.GetDatePosted());
-		auto res = AnsiToWstring(submission.GetResolution());
+		if (ListView_GetNextItem(MainDlg::getInstance()->m_downloadedList.hwnd(), -1, LVNI_SELECTED) == m_item)
+		{
+			auto title = AnsiToWstring(submission.GetSubmissionTitle());
+			auto date = AnsiToWstring(submission.GetDatePosted());
+			auto res = AnsiToWstring(submission.GetResolution());
 
-		MainDlg::getInstance()->m_downloadedList.AddItem(title, NULL,
-			{ date, res, std::to_wstring(IDs.id) });
+			MainDlg::getInstance()->m_downloadedList.AddItem(title, NULL, { date, res, std::to_wstring(submission.GetSubmissionID()) });
+		}
+
+		MainDlg::getInstance()->m_downloadListData.GetType()[m_item].push_back(submission);
 
 		++progress;
 

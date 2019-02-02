@@ -6,6 +6,8 @@
 #include <gdiplus.h>
 #include <ShlObj.h>
 
+#include "FASubmission.h"
+
 ThreadLock<MainDlg*> MainDlg::m_pDlg;
 
 MainDlg::MainDlg() : Dialog(IDD_MAIN), m_dumperPool(std::thread::hardware_concurrency())
@@ -15,11 +17,14 @@ MainDlg::MainDlg() : Dialog(IDD_MAIN), m_dumperPool(std::thread::hardware_concur
 
 	m_messages[MSG_SETCOLOR] = static_cast<Dialog::fnDlgProc>(&MainDlg::OnCustomColorChange);
 	m_messages[MSG_LOADTHUMBNAILS] = static_cast<Dialog::fnDlgProc>(&MainDlg::OnLoadThumbnails);
+	m_messages[MSG_ADDTODOWNLOADLIST] = static_cast<Dialog::fnDlgProc>(&MainDlg::OnAddToDownloadList);
 
 	m_events[IDC_ADDTOQUEUE] = static_cast<Dialog::fnDlgProc>(&MainDlg::OnUserSubmit);
 	m_events[ID_SETTINGS_DOWNLOADS] = static_cast<Dialog::fnDlgProc>(&MainDlg::OnSettings);
 
+
 	m_notifs[std::make_pair(NM_RCLICK, IDC_QUEUE)] = static_cast<Dialog::fnDlgProc>(&MainDlg::OnRClickQueueItem);
+	m_notifs[std::make_pair(NM_CLICK, IDC_QUEUE)] = static_cast<Dialog::fnDlgProc>(&MainDlg::OnLClickQueueItem);
 	m_notifs[std::make_pair(LVN_INSERTITEM, IDC_QUEUE)] = static_cast<Dialog::fnDlgProc>(&MainDlg::OnAddedToQueue);
 	m_notifs[std::make_pair(NM_CUSTOMDRAW, IDC_QUEUE)] = static_cast<Dialog::fnDlgProc>(&MainDlg::OnQueueCustomDraw);
 
@@ -140,7 +145,7 @@ INT_PTR MainDlg::OnLoadThumbnails(HWND hDlg, UINT message, WPARAM wParam, LPARAM
 	namespace fs = std::filesystem;
 	using namespace Gdiplus;
 
-	std::vector<fs::directory_entry> thumblist; int i = 0;
+	std::vector<fs::directory_entry> thumblist; 
 	for (auto& file : fs::directory_iterator(thumbdata->workingdir))
 	{
 		if (!file.is_regular_file())
@@ -152,7 +157,7 @@ INT_PTR MainDlg::OnLoadThumbnails(HWND hDlg, UINT message, WPARAM wParam, LPARAM
 		if (!(!ext.compare(L"png") || !ext.compare(L"jpg"))) // make exception for items that cant be displayed in thumbnail form
 			continue;
 
-		thumblist.push_back(file); ++i;
+		thumblist.push_back(file);
 	}
 	
 	ImageList_RemoveAll(m_imageList);
@@ -162,13 +167,24 @@ INT_PTR MainDlg::OnLoadThumbnails(HWND hDlg, UINT message, WPARAM wParam, LPARAM
 
 	SendMessage(m_gallery.hwnd(), WM_SETREDRAW, FALSE, 0);
 
+	auto fadatavec = thumbdata->data;
+
 	for (auto& thumbnail : thumblist)
 	{
 		auto filename = thumbnail.path().filename().wstring();
-		auto ext = filename.substr(filename.find_last_of(L".") + 1);
-
 		int index = m_gallery.AddImage(L"bluee is a bottom");
-		std::wstring title = AnsiToWstring(thumbdata->data.at(index).title);
+
+		auto it = std::find_if(fadatavec.begin(), fadatavec.end(), [&](faData dat) 
+		{ 
+			std::string s = dat.thumbnailURL.substr(dat.thumbnailURL.find_last_of("/") + 1);
+			return filename.compare(AnsiToWstring(s)) == 0;
+		});
+
+		if (it == fadatavec.end())
+			continue;
+
+		std::wstring title = AnsiToWstring(it->title);
+
 		ListView_SetItemText(m_gallery.hwnd(), index, NULL, (LPWSTR)title.c_str());
 
 		HBITMAP hBitmap;
@@ -238,7 +254,8 @@ INT_PTR MainDlg::OnRClickQueueItem(HWND hDlg, UINT message, WPARAM wParam, LPARA
 {
 	auto lpnmitem = (LPNMITEMACTIVATE)lParam;
 
-	auto menu = LoadMenu(GetModuleHandle(NULL), MAKEINTRESOURCE(IDR_QUEUE_MENU));
+	auto topmenu = LoadMenu(GetModuleHandle(NULL), MAKEINTRESOURCE(IDR_QUEUE_MENU));
+	auto menu = GetSubMenu(topmenu, 0);
 
 	POINT cursorpos;
 	GetCursorPos(&cursorpos);
@@ -248,9 +265,38 @@ INT_PTR MainDlg::OnRClickQueueItem(HWND hDlg, UINT message, WPARAM wParam, LPARA
 	return TRUE;
 }
 
+INT_PTR MainDlg::OnLClickQueueItem(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
+{
+	auto lpnmitem = (LPNMITEMACTIVATE)lParam;
+
+	// switch context of all items in the prview gallery & download list
+
+	auto vec = m_downloadListData.GetType()[lpnmitem->iItem];
+
+	for (auto submission : vec)
+	{
+		auto title = AnsiToWstring(submission.GetSubmissionTitle());
+		auto date = AnsiToWstring(submission.GetDatePosted());
+		auto res = AnsiToWstring(submission.GetResolution());
+
+		m_downloadedList.AddItem(title, NULL, { date, res, std::to_wstring(submission.GetSubmissionID()) });
+	}
+
+	return TRUE;
+}
+
 INT_PTR MainDlg::OnQueueCustomDraw(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 {
 	SetWindowLongPtr(hDlg, DWLP_MSGRESULT, (LONG)ProcessCustomDraw(lParam));
+	return TRUE;
+}
+
+INT_PTR MainDlg::OnAddToDownloadList(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
+{
+	auto itemdata = (downloadListData*)lParam;
+
+
+
 	return TRUE;
 }
 
