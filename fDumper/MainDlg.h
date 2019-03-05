@@ -30,10 +30,16 @@ private:
 	MSG_HANDLER(OnUserSubmit);
 	MSG_HANDLER(OnAddedToQueue);
 	MSG_HANDLER(OnSettings);
+	MSG_HANDLER(OnChangeAPI);
 	MSG_HANDLER(OnRClickQueueItem);
 	MSG_HANDLER(OnLClickQueueItem);
+	MSG_HANDLER(OnLClickPreviewItem);
+	MSG_HANDLER(OnLClickDownloadListItem);
+	MSG_HANDLER(OnPause);
+	MSG_HANDLER(OnResume);
+	MSG_HANDLER(OnCancel);
 
-	MSG_HANDLER(OnLoadThumbnails);
+	MSG_HANDLER(OnLoadThumbnail);
 	MSG_HANDLER(OnQueueCustomDraw);
 	MSG_HANDLER(OnCustomColorChange);
 	MSG_HANDLER(OnAddToDownloadList);
@@ -64,8 +70,12 @@ public:
 	ctrl::EditBox m_username;
 	ctrl::Button m_addtoqueue;
 
-	ThreadLock<std::map<int, std::vector<FASubmission>>> m_downloadListData;
+	std::unordered_map<int, std::vector<FASubmission>> m_downloadListData;
+	std::unordered_map<int, std::vector<faData>> m_previewData;
+
 private:
+	int m_selectedIdx = -1;
+	int m_clickedIdx = -1;
 
 	ctpl::thread_pool m_dumperPool;
 
@@ -85,6 +95,7 @@ private:
 	MSG_HANDLER(OnCloseBtn);
 	MSG_HANDLER(OnOkBtn);
 	MSG_HANDLER(OnBrowseBtn);
+	MSG_HANDLER(OnAskSaveChecked);
 
 	std::wstring m_newpath;
 	bool m_bAsksave;
@@ -94,6 +105,26 @@ private:
 	ctrl::EditBox m_currentDir;
 	ctrl::Button m_browse;
 	ctrl::Button m_alwaysask;
+	ctrl::Button m_ok;
+	ctrl::Button m_cancel;
+};
+
+class CAPIDlg : public Dialog
+{
+public:
+	CAPIDlg(ConfigMgr& config);
+
+private:
+	MSG_HANDLER(OnInit);
+
+	MSG_HANDLER(OnCloseBtn);
+	MSG_HANDLER(OnOkBtn);
+
+	std::string m_api;
+	ConfigMgr& m_config;
+
+private:
+	ctrl::EditBox m_webaddress;
 	ctrl::Button m_ok;
 	ctrl::Button m_cancel;
 };

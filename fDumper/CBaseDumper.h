@@ -7,8 +7,7 @@
 
 #include "configmgr.h"
 
-#include "../contrib/curl/curl.h"
-#include "../contrib/rapidjson/document.h"
+#include "FASubmission.h"
 
 #include <mutex>
 
@@ -40,7 +39,8 @@ struct DownloadContext
 };
 
 #define MSG_SETCOLOR (WM_USER + 0x420)
-#define MSG_LOADTHUMBNAILS (WM_USER + 0x666)
+//#define MSG_LOADTHUMBNAILS (WM_USER + 0x666)
+#define MSG_LOADTHUMBNAIL (WM_USER + 0x666)
 #define MSG_ADDTODOWNLOADLIST (WM_USER + 0x69)
 
 struct cColors {
@@ -49,14 +49,17 @@ struct cColors {
 };
 
 struct faData {
+	faData(int id, std::string title, std::string thumbnailURL) : id(id), title(title), thumbnailURL(thumbnailURL) {}
 	int id;
 	std::string title;
 	std::string thumbnailURL;
+	std::wstring path;
 };
 
 struct thumbnailData {
-	std::wstring workingdir;
-	std::vector<faData> data;
+	int index;
+	std::wstring path;
+	faData data;
 };
 
 struct downloadListData {
@@ -97,7 +100,7 @@ public:
 		std::lock_guard<std::mutex> lock(m_mutex);
 		return m_protected;
 	}
-	void execute(std::function<void(T)> callback) {
+	void execute(std::function<void(T&)> callback) {
 		assert(callback != nullptr);
 		std::lock_guard<std::mutex> lock(m_mutex);
 		callback(m_protected);
@@ -113,17 +116,6 @@ private:
 	mutable std::mutex m_mutex;
 	T m_protected{};
 };
-
-static size_t writebuffercallback(void *contents, size_t size, size_t nmemb, void *userp)
-{
-	((std::string*)userp)->append((char*)contents, size * nmemb);
-	return size * nmemb;
-}
-
-static size_t writefilecallback(void* contents, size_t size, size_t nmemb, FILE* fp)
-{
-	return fwrite(contents, size, nmemb, fp);
-}
 
 static std::wstring AnsiToWstring(const std::string& input, DWORD locale = CP_ACP)
 {

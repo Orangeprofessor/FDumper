@@ -45,7 +45,9 @@ int APIENTRY wWinMain(HINSTANCE /*hInstance*/, HINSTANCE /*hPrevInstance*/, LPWS
 
 	dump::DumpHandler::Instance().CreateWatchdog(workingpath, dump::CreateFullDump, &DumpNotifier);
 
-	std::filesystem::create_directory(workingpath + L"thumbs");
+	std::wstring thumbs = workingpath + L"thumbs";
+	std::filesystem::remove(thumbs);
+	std::filesystem::create_directory(thumbs);
 
 	curl_global_init(CURL_GLOBAL_ALL);
 
@@ -55,6 +57,8 @@ int APIENTRY wWinMain(HINSTANCE /*hInstance*/, HINSTANCE /*hPrevInstance*/, LPWS
 
 	MainDlg dlg;
 	dlg.RunModeless();
+
+	std::filesystem::remove(thumbs);
 
 	Gdiplus::GdiplusShutdown(gdiplusToken);
 

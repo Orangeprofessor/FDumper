@@ -90,6 +90,9 @@
     <ClInclude Include="configmgr.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="UpdateDlg.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -110,9 +113,6 @@
     <ClCompile Include="FADumper.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="FAFavorites.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="MainDlg.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -121,7 +121,7 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ResourceCompile Include="fDumper.rc">
+    <ResourceCompile Include="FDumper.rc">
       <Filter>Resource Files</Filter>
     </ResourceCompile>
   </ItemGroup>

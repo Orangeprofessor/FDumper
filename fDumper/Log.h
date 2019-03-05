@@ -77,7 +77,7 @@ namespace xlog
 			wchar_t temp[MAX_PATH] = {};
 			GetTempPath(MAX_PATH, temp);
 			std::wstring logpath(temp);
-			logpath.append(L"\\FDumper\\fdumper.log");
+			logpath.append(L"\\FDumper\\FDumper.log");
 
 			_output.open(logpath, std::ios::out | std::ios::app);
 		}

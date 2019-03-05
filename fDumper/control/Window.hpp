@@ -24,8 +24,10 @@ public:
 	virtual inline HWND hwnd() const { return m_hwnd; }
 	virtual inline UINT id()   const { return m_id; }
 
+	virtual inline bool enabled() const { return IsWindowEnabled(m_hwnd); }
 	virtual inline void enable()  const { EnableWindow(m_hwnd, TRUE); }
 	virtual inline void disable() const { EnableWindow(m_hwnd, FALSE); }
+	
 
 	virtual std::wstring text() const
 	{

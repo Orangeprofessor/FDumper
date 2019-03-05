@@ -16,15 +16,20 @@ MainDlg::MainDlg() : Dialog(IDD_MAIN), m_dumperPool(std::thread::hardware_concur
 	m_messages[WM_CLOSE] = static_cast<Dialog::fnDlgProc>(&MainDlg::OnClose);
 
 	m_messages[MSG_SETCOLOR] = static_cast<Dialog::fnDlgProc>(&MainDlg::OnCustomColorChange);
-	m_messages[MSG_LOADTHUMBNAILS] = static_cast<Dialog::fnDlgProc>(&MainDlg::OnLoadThumbnails);
+	m_messages[MSG_LOADTHUMBNAIL] = static_cast<Dialog::fnDlgProc>(&MainDlg::OnLoadThumbnail);
 	m_messages[MSG_ADDTODOWNLOADLIST] = static_cast<Dialog::fnDlgProc>(&MainDlg::OnAddToDownloadList);
 
 	m_events[IDC_ADDTOQUEUE] = static_cast<Dialog::fnDlgProc>(&MainDlg::OnUserSubmit);
 	m_events[ID_SETTINGS_DOWNLOADS] = static_cast<Dialog::fnDlgProc>(&MainDlg::OnSettings);
-
+	m_events[ID_SETTINGS_APIADDRESS] = static_cast<Dialog::fnDlgProc>(&MainDlg::OnChangeAPI);
+	m_events[ID_CTX_PAUSE] = static_cast<Dialog::fnDlgProc>(&MainDlg::OnPause);
+	m_events[ID_CTX_RESUME] = static_cast<Dialog::fnDlgProc>(&MainDlg::OnResume);
+	m_events[ID_CTX_CANCEL] = static_cast<Dialog::fnDlgProc>(&MainDlg::OnCancel);
 
 	m_notifs[std::make_pair(NM_RCLICK, IDC_QUEUE)] = static_cast<Dialog::fnDlgProc>(&MainDlg::OnRClickQueueItem);
 	m_notifs[std::make_pair(NM_CLICK, IDC_QUEUE)] = static_cast<Dialog::fnDlgProc>(&MainDlg::OnLClickQueueItem);
+	m_notifs[std::make_pair(NM_DBLCLK, IDC_GALLERYLIST)] = static_cast<Dialog::fnDlgProc>(&MainDlg::OnLClickPreviewItem);
+	m_notifs[std::make_pair(NM_DBLCLK, IDC_IMAGELIST)] = static_cast<Dialog::fnDlgProc>(&MainDlg::OnLClickDownloadListItem);
 	m_notifs[std::make_pair(LVN_INSERTITEM, IDC_QUEUE)] = static_cast<Dialog::fnDlgProc>(&MainDlg::OnAddedToQueue);
 	m_notifs[std::make_pair(NM_CUSTOMDRAW, IDC_QUEUE)] = static_cast<Dialog::fnDlgProc>(&MainDlg::OnQueueCustomDraw);
 
@@ -46,6 +51,7 @@ INT_PTR MainDlg::OnInit(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 
 	m_imageList = ImageList_Create(100, 90, ILC_COLOR32, 0, 1);
 	ListView_SetImageList(m_gallery.hwnd(), m_imageList, LVSIL_NORMAL);
+	ImageList_SetImageCount(m_imageList, 1);
 
 	m_downloadedList.Attach(hDlg, IDC_IMAGELIST);
 
@@ -79,6 +85,7 @@ INT_PTR MainDlg::OnInit(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 	m_config.Load();
 	m_config.config().apiaddress = "http://faexport.boothale.net";
 
+
 	return TRUE;
 }
 
@@ -95,8 +102,10 @@ INT_PTR MainDlg::OnUserSubmit(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPa
 
 	if (username.empty())
 		return FALSE;
-
-	m_userQueue.AddItem(username, 0, { L"Pending", L"0", L"0" });
+	
+	int idx = m_userQueue.AddItem(username, 0, { L"Pending", L"0", L"0" });
+	if (idx == 0)
+		m_selectedIdx = idx;
 
 	return TRUE;
 }
@@ -106,19 +115,70 @@ INT_PTR MainDlg::OnAddedToQueue(HWND hDlg, UINT message, WPARAM wParam, LPARAM l
 	const auto item = (LPNMLISTVIEW)lParam;
 	m_itemColors.push_back({ RGB(255, 150, 0), item->iItem });
 
-	auto dumper = [&](int threadid, int item)
+	if (m_config.config().askforsave)
+	{
+		wchar_t szDir[MAX_PATH];
+		BROWSEINFO bInfo;
+		bInfo.hwndOwner = hDlg;
+		bInfo.pidlRoot = NULL;
+		bInfo.pszDisplayName = szDir; // Address of a buffer to receive the display name of the folder selected by the user
+		bInfo.lpszTitle = L"Pwease sewect a fowdew UwU"; // Title of the dialog
+		bInfo.ulFlags = 0;
+		bInfo.lpfn = NULL;
+		bInfo.lParam = 0;
+		bInfo.iImage = -1;
+
+		LPITEMIDLIST lpItem = SHBrowseForFolderW(&bInfo);
+
+		SHGetPathFromIDListW(lpItem, szDir);
+
+		std::wstring folder(szDir);
+
+		if (folder.empty())
+		{
+			m_userQueue.RemoveItem(item->iItem);
+			return FALSE;
+		}	
+	}
+
+	faRatingFlags rating;
+
+	if (m_allRatings.checked())
+		rating = faRatingFlags::ALL_RATINGS;
+	else if (m_sfwOnly.checked())
+		rating = faRatingFlags::SFW_ONLY;
+	else if (m_nsfwOnly.checked())
+		rating = faRatingFlags::NSFW_ONLY;
+
+	int gallery = 0;
+
+	if (m_filterMain.checked())
+		gallery |= faGalleryFlags::MAIN;
+	if (m_filterScraps.checked())
+		gallery |= faGalleryFlags::SCRAPS;
+	if (m_filterFavs.checked())
+		gallery |= faGalleryFlags::FAVORITES;
+
+
+	if (gallery == 0)
+	{
+		Message::ShowError(m_hwnd, L"Please select a gallery");
+		return FALSE;
+	}
+
+	auto dumper = [&](int threadid, int item, faRatingFlags rating, int gallery)
 	{
 		DownloadContext ctx;
 		ctx.username = WstringToAnsi(m_userQueue.itemText(item));
-		ctx.gallery |= faGalleryFlags::MAIN;
-		ctx.ratings = faRatingFlags::SFW_ONLY;
+		ctx.gallery = gallery;
+		ctx.ratings = rating;
 		const_cast<std::wstring&>(ctx.path) = m_config.config().defaultDir + L"\\" + AnsiToWstring(ctx.username);
 
 		CFADumper dumper(m_config, item);
 		dumper.Action(ctx);
 	};
 
-	m_dumperPool.push(dumper, item->iItem);
+	m_dumperPool.push(dumper, item->iItem, rating, gallery);
 
 	return TRUE;
 }
@@ -138,106 +198,77 @@ INT_PTR MainDlg::OnCustomColorChange(HWND hDlg, UINT message, WPARAM wParam, LPA
 	return TRUE;
 }
 
-INT_PTR MainDlg::OnLoadThumbnails(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
+INT_PTR MainDlg::OnLoadThumbnail(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 {
 	auto thumbdata = (thumbnailData*)lParam;
-	
+
 	namespace fs = std::filesystem;
 	using namespace Gdiplus;
 
-	std::vector<fs::directory_entry> thumblist; 
-	for (auto& file : fs::directory_iterator(thumbdata->workingdir))
-	{
-		if (!file.is_regular_file())
-			continue;
+	faData dat = thumbdata->data; dat.path = thumbdata->path;
+	m_previewData[thumbdata->index].push_back(dat);
 
-		auto filename = file.path().filename().wstring();
-		auto ext = filename.substr(filename.find_last_of(L".") + 1);
-
-		if (!(!ext.compare(L"png") || !ext.compare(L"jpg"))) // make exception for items that cant be displayed in thumbnail form
-			continue;
-
-		thumblist.push_back(file);
-	}
-	
-	ImageList_RemoveAll(m_imageList);
-
-	ListView_DeleteAllItems(m_gallery.hwnd());
-	ImageList_SetImageCount(m_imageList, thumblist.size());
+	if (m_selectedIdx != thumbdata->index)
+		return FALSE;
 
 	SendMessage(m_gallery.hwnd(), WM_SETREDRAW, FALSE, 0);
 
-	auto fadatavec = thumbdata->data;
+	fs::directory_entry file(thumbdata->path);
 
-	for (auto& thumbnail : thumblist)
+	int index = m_gallery.AddImage(L"bluee is a bottom");
+	ImageList_SetImageCount(m_imageList, ImageList_GetImageCount(m_imageList) + index);
+
+	std::wstring title = AnsiToWstring(thumbdata->data.title);
+
+	ListView_SetItemText(m_gallery.hwnd(), index, NULL, (LPWSTR)title.c_str());
+
+	std::unique_ptr<Bitmap> pbmPhoto;
+	std::unique_ptr<Graphics> pgrPhoto;
+	std::unique_ptr<void, decltype(&DeleteObject)> hBitmap(nullptr, DeleteObject);
+
+	Bitmap image(thumbdata->path.c_str());
+
+	const int thumbWidth = 100;
+	const int thumbHeight = 90;
+
+	int sourceWidth = image.GetWidth();
+	int sourceHeight = image.GetHeight();
+
+	int destX = 0,
+		destY = 0;
+
+	float nPercent = 0;
+	float nPercentW = ((float)thumbWidth / (float)sourceWidth);
+	float nPercentH = ((float)thumbHeight / (float)sourceHeight);
+
+	if (nPercentH < nPercentW)
 	{
-		auto filename = thumbnail.path().filename().wstring();
-		int index = m_gallery.AddImage(L"bluee is a bottom");
-
-		auto it = std::find_if(fadatavec.begin(), fadatavec.end(), [&](faData dat) 
-		{ 
-			std::string s = dat.thumbnailURL.substr(dat.thumbnailURL.find_last_of("/") + 1);
-			return filename.compare(AnsiToWstring(s)) == 0;
-		});
-
-		if (it == fadatavec.end())
-			continue;
-
-		std::wstring title = AnsiToWstring(it->title);
-
-		ListView_SetItemText(m_gallery.hwnd(), index, NULL, (LPWSTR)title.c_str());
-
-		HBITMAP hBitmap;
-		std::unique_ptr<Bitmap> pbmPhoto;
-		std::unique_ptr<Graphics> pgrPhoto;
-
-		auto path = thumbnail.path().wstring();
-
-		Bitmap image(path.c_str());
-
-		const int thumbWidth = 100;
-		const int thumbHeight = 90;
-
-		int sourceWidth = image.GetWidth();
-		int sourceHeight = image.GetHeight();
-
-		int destX = 0,
-			destY = 0;
-
-		float nPercent = 0;
-		float nPercentW = ((float)thumbWidth / (float)sourceWidth);
-		float nPercentH = ((float)thumbHeight / (float)sourceHeight);
-
-		if (nPercentH < nPercentW)
-		{
-			nPercent = nPercentH;
-			destX = (int)((thumbWidth - (sourceWidth * nPercent)) / 2);
-		}
-		else
-		{
-			nPercent = nPercentW;
-			destY = (int)((thumbHeight - (sourceHeight * nPercent)) / 2);
-		}
-
-		int destWidth = (int)(sourceWidth * nPercent);
-		int destHeight = (int)(sourceHeight * nPercent);
-
-		pbmPhoto = std::make_unique<Bitmap>(sourceWidth, sourceHeight, PixelFormat24bppRGB);
-		pbmPhoto->SetResolution(image.GetHorizontalResolution(), image.GetVerticalResolution());
-
-		pgrPhoto.reset(Graphics::FromImage(pbmPhoto.get()));
-
-		Color colorW(255, 255, 255, 255);
-		pgrPhoto->Clear(colorW);
-		pgrPhoto->SetInterpolationMode(InterpolationModeHighQualityBicubic);
-		pgrPhoto->DrawImage(&image, Rect(destX, destY, destWidth, destHeight));
-
-		pbmPhoto->GetHBITMAP(colorW, &hBitmap);
-
-		auto result = ImageList_Replace(m_imageList, index, hBitmap, NULL);
-
-		DeleteObject(hBitmap);
+		nPercent = nPercentH;
+		destX = (int)((thumbWidth - (sourceWidth * nPercent)) / 2);
 	}
+	else
+	{
+		nPercent = nPercentW;
+		destY = (int)((thumbHeight - (sourceHeight * nPercent)) / 2);
+	}
+
+	int destWidth = (int)(sourceWidth * nPercent);
+	int destHeight = (int)(sourceHeight * nPercent);
+
+	pbmPhoto = std::make_unique<Bitmap>(sourceWidth, sourceHeight, PixelFormat24bppRGB);
+	pbmPhoto->SetResolution(image.GetHorizontalResolution(), image.GetVerticalResolution());
+
+	pgrPhoto.reset(Graphics::FromImage(pbmPhoto.get()));
+
+	Color colorW(255, 255, 255, 255);
+	pgrPhoto->Clear(colorW);
+	pgrPhoto->SetInterpolationMode(InterpolationModeHighQualityBicubic);
+	pgrPhoto->DrawImage(&image, Rect(destX, destY, destWidth, destHeight));
+
+	auto ref = hBitmap.get();
+	pbmPhoto->GetHBITMAP(colorW, (HBITMAP*)&ref);
+
+	auto result = ImageList_Replace(m_imageList, index, (HBITMAP)hBitmap.get(), NULL);
 
 	SendMessage(m_gallery.hwnd(), WM_SETREDRAW, TRUE, 0);
 
@@ -250,9 +281,20 @@ INT_PTR MainDlg::OnSettings(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPara
 	return settings.RunModal(hDlg);
 }
 
+INT_PTR MainDlg::OnChangeAPI(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
+{
+	CAPIDlg changeapi(m_config);
+	return changeapi.RunModal(hDlg);
+}
+
 INT_PTR MainDlg::OnRClickQueueItem(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 {
 	auto lpnmitem = (LPNMITEMACTIVATE)lParam;
+
+	m_clickedIdx = lpnmitem->iItem;
+
+	if (m_clickedIdx == -1)
+		return FALSE;
 
 	auto topmenu = LoadMenu(GetModuleHandle(NULL), MAKEINTRESOURCE(IDR_QUEUE_MENU));
 	auto menu = GetSubMenu(topmenu, 0);
@@ -269,9 +311,17 @@ INT_PTR MainDlg::OnLClickQueueItem(HWND hDlg, UINT message, WPARAM wParam, LPARA
 {
 	auto lpnmitem = (LPNMITEMACTIVATE)lParam;
 
-	// switch context of all items in the prview gallery & download list
+	if (lpnmitem->iItem == m_selectedIdx)
+		return FALSE;
 
-	auto vec = m_downloadListData.GetType()[lpnmitem->iItem];
+	// switch context of all items in the prview gallery & download list
+	m_downloadedList.disable();
+
+	m_downloadedList.reset();
+
+	m_selectedIdx = lpnmitem->iItem;
+
+	auto vec = m_downloadListData[lpnmitem->iItem];
 
 	for (auto submission : vec)
 	{
@@ -282,6 +332,79 @@ INT_PTR MainDlg::OnLClickQueueItem(HWND hDlg, UINT message, WPARAM wParam, LPARA
 		m_downloadedList.AddItem(title, NULL, { date, res, std::to_wstring(submission.GetSubmissionID()) });
 	}
 
+	m_downloadedList.enable();
+
+	return TRUE;
+}
+
+INT_PTR MainDlg::OnLClickPreviewItem(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
+{
+	auto lpnmitem = (LPNMITEMACTIVATE)lParam;
+
+	auto vec = m_previewData[m_selectedIdx];
+
+	auto it = std::find_if(vec.begin(), vec.end(), [&](faData data) {
+		auto cm = m_galleries.itemText(lpnmitem->iItem);
+		return AnsiToWstring(data.title).compare(cm) != 0;
+	});
+
+	if (it == std::end(vec))
+		return FALSE;
+
+	ShellExecute(m_hwnd, L"open", it->path.c_str(), NULL, NULL, SW_SHOW);
+
+	return TRUE;
+}
+
+INT_PTR MainDlg::OnLClickDownloadListItem(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
+{
+	auto lpnmitem = (LPNMITEMACTIVATE)lParam;
+
+	LVFINDINFO info{};
+	info.flags = LVFI_STRING;
+	auto str = m_downloadedList.itemText(lpnmitem->iItem);
+	info.psz = str.c_str();
+	int pos = ListView_FindItem(m_gallery.hwnd(), -1, &info);
+
+	if (pos == -1)
+		return FALSE;
+
+	ListView_EnsureVisible(m_gallery.hwnd(), pos, FALSE);
+
+	return TRUE;
+}
+
+INT_PTR MainDlg::OnPause(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
+{
+	if (m_selectedIdx == -1)
+		return FALSE;
+
+	cColors clrs{ RGB(255, 150, 0), m_selectedIdx };
+	SendMessage(m_hwnd, MSG_SETCOLOR, NULL, (LPARAM)&clrs);
+
+	m_userQueue.setText(L"Paused", m_selectedIdx, 1);
+
+	auto& thread = m_dumperPool.get_thread(m_selectedIdx);
+
+	SuspendThread(thread.native_handle());
+
+	return TRUE;
+}
+
+INT_PTR MainDlg::OnResume(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
+{
+	if (m_selectedIdx == -1)
+		return FALSE;
+
+	auto& thread = m_dumperPool.get_thread(m_selectedIdx);
+
+	ResumeThread(thread.native_handle());
+
+	return TRUE;
+}
+
+INT_PTR MainDlg::OnCancel(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
+{
 	return TRUE;
 }
 
@@ -295,7 +418,21 @@ INT_PTR MainDlg::OnAddToDownloadList(HWND hDlg, UINT message, WPARAM wParam, LPA
 {
 	auto itemdata = (downloadListData*)lParam;
 
+	if (!m_downloadedList.enabled())
+		return FALSE;
 
+	m_downloadListData[itemdata->index].push_back(itemdata->submission);
+
+	if (m_selectedIdx == itemdata->index)
+	{
+		auto submission = itemdata->submission;
+
+		auto title = AnsiToWstring(submission.GetSubmissionTitle());
+		auto date = AnsiToWstring(submission.GetDatePosted());
+		auto res = AnsiToWstring(submission.GetResolution());
+
+		m_downloadedList.AddItem(title, NULL, { date, res, std::to_wstring(submission.GetSubmissionID()) });
+	}
 
 	return TRUE;
 }
@@ -366,6 +503,7 @@ CEditSavesDlg::CEditSavesDlg(ConfigMgr& config) : Dialog(IDD_DOWNLOADS), m_confi
 {
 	m_messages[WM_INITDIALOG] = static_cast<Dialog::fnDlgProc>(&CEditSavesDlg::OnInit);
 
+	m_events[IDC_DLSET_ASKSAVE] = static_cast<Dialog::fnDlgProc>(&CEditSavesDlg::OnAskSaveChecked);
 	m_events[IDC_DLSET_CANCEL] = static_cast<Dialog::fnDlgProc>(&CEditSavesDlg::OnCloseBtn);
 	m_events[IDC_DLSET_OK] = static_cast<Dialog::fnDlgProc>(&CEditSavesDlg::OnOkBtn);
 	m_events[IDC_DLSET_BROWSE] = static_cast<Dialog::fnDlgProc>(&CEditSavesDlg::OnBrowseBtn);
@@ -388,6 +526,11 @@ INT_PTR CEditSavesDlg::OnInit(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPa
 	m_currentDir.text(m_newpath);
 	m_alwaysask.checked(m_bAsksave);
 
+	if (m_bAsksave) {
+		m_currentDir.disable();
+		m_browse.disable();
+	}
+		
 	return TRUE;
 }
 
@@ -402,7 +545,7 @@ INT_PTR CEditSavesDlg::OnOkBtn(HWND hDlg, UINT message, WPARAM wParam, LPARAM lP
 	// save to cfg
 	auto& cfg = m_config.config();
 	cfg.defaultDir = m_newpath;
-	cfg.askforsave = m_bAsksave;
+	cfg.askforsave = m_alwaysask.checked();
 	return Dialog::OnClose(hDlg, message, wParam, lParam);
 }
 
@@ -432,4 +575,91 @@ INT_PTR CEditSavesDlg::OnBrowseBtn(HWND hDlg, UINT message, WPARAM wParam, LPARA
 	m_currentDir.text(m_newpath);
 
 	return TRUE;
+}
+
+INT_PTR CEditSavesDlg::OnAskSaveChecked(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
+{
+	EnableWindow(m_currentDir.hwnd(), !m_alwaysask.checked());
+	EnableWindow(m_browse.hwnd(), !m_alwaysask.checked());
+
+	return TRUE;
+}
+
+CAPIDlg::CAPIDlg(ConfigMgr & config) : Dialog(IDD_API), m_config(config)
+{
+	m_messages[WM_INITDIALOG] = static_cast<Dialog::fnDlgProc>(&CAPIDlg::OnInit);
+
+	m_events[IDC_API_OK] = static_cast<Dialog::fnDlgProc>(&CAPIDlg::OnOkBtn);
+	m_events[IDC_API_CANCEL] = static_cast<Dialog::fnDlgProc>(&CAPIDlg::OnCloseBtn);
+}
+
+INT_PTR CAPIDlg::OnInit(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
+{
+	Dialog::OnInit(hDlg, message, wParam, lParam);
+
+	m_webaddress.Attach(hDlg, IDC_API_ADDRESS);
+	m_ok.Attach(hDlg, IDC_API_OK);
+	m_cancel.Attach(hDlg, IDC_API_CANCEL);
+
+	auto cfg = m_config.config();
+	m_api = cfg.apiaddress;
+
+	m_webaddress.text(AnsiToWstring(m_api));
+
+	return TRUE;
+}
+
+INT_PTR CAPIDlg::OnCloseBtn(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
+{
+	return Dialog::OnClose(hDlg, message, wParam, lParam);
+}
+
+INT_PTR CAPIDlg::OnOkBtn(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
+{
+	// test address
+
+	auto address = WstringToAnsi(m_webaddress.text());
+	
+	if (address.empty())
+	{
+		//do something here
+		Message::ShowError(m_hwnd, L"Type something!");
+		return FALSE;
+	}
+
+	// shoutouts to gorath
+	address.append("/user/gorath.json");
+
+	std::string buffer; int httpcode;
+	std::unique_ptr<CURL, decltype(&curl_easy_cleanup)> curl(curl_easy_init(), curl_easy_cleanup);
+
+	curl_easy_setopt(curl.get(), CURLOPT_URL, address.c_str());
+	curl_easy_setopt(curl.get(), CURLOPT_WRITEFUNCTION, writebuffercallback);
+	curl_easy_setopt(curl.get(), CURLOPT_WRITEDATA, &buffer);
+	curl_easy_setopt(curl.get(), CURLOPT_TIMEOUT, 5);
+	CURLcode code = curl_easy_perform(curl.get());
+
+	if (code != CURLE_OK)
+	{
+		auto err = curl_easy_strerror(code);
+		std::wstring msg = L"Connection error! " + AnsiToWstring(err);
+		Message::ShowError(m_hwnd, msg);
+
+		return FALSE;
+	}
+
+	curl_easy_getinfo(curl.get(), CURLINFO_RESPONSE_CODE, &httpcode);
+
+	if (httpcode != 200)
+	{
+		auto err = curl_easy_strerror(code);
+		std::wstring msg = L"Connection error! " + AnsiToWstring(err);
+		Message::ShowError(m_hwnd, msg);
+		
+		return FALSE;
+	}
+
+	m_config.config().apiaddress = address;
+
+	return Dialog::OnClose(hDlg, message, wParam, lParam);
 }

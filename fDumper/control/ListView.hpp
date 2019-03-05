@@ -43,12 +43,13 @@ namespace ctrl
 			return pos;
 		}
 
-		virtual int AddImage(const std::wstring& text)
+		virtual int AddImage(const std::wstring& text, LPARAM lParam = NULL)
 		{
 			LVITEMW lvi = { 0 };
 
-			lvi.mask = LVIF_TEXT | LVIF_IMAGE;
+			lvi.mask = LVIF_TEXT | LVIF_IMAGE | LVIF_PARAM;
 
+			lvi.lParam = lParam;
 			lvi.pszText = (LPWSTR)text.c_str();
 			lvi.cchTextMax = static_cast<int>(text.length()) + 1;
 			lvi.iItem = lvi.iImage = ListView_GetItemCount(m_hwnd);

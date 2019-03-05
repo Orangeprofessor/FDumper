@@ -1,6 +1,18 @@
 #pragma once
 
-#include "CBaseDumper.h"
+#include "../contrib/curl/curl.h"
+#include "../contrib/rapidjson/document.h"
+
+static size_t writebuffercallback(void *contents, size_t size, size_t nmemb, void *userp)
+{
+	((std::string*)userp)->append((char*)contents, size * nmemb);
+	return size * nmemb;
+}
+
+static size_t writefilecallback(void* contents, size_t size, size_t nmemb, FILE* fp)
+{
+	return fwrite(contents, size, nmemb, fp);
+}
 
 struct FASubmission
 {
@@ -65,7 +77,6 @@ struct FASubmission
 
 			break;
 		}
-
 	}
 
 	inline std::string GetDownloadLink() { return downloadURL; }

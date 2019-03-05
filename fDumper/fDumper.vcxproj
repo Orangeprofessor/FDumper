@@ -24,7 +24,7 @@
     <Keyword>Win32Proj</Keyword>
     <RootNamespace>fDumper</RootNamespace>
     <WindowsTargetPlatformVersion>10.0.17763.0</WindowsTargetPlatformVersion>
-    <ProjectName>FDumper-cli</ProjectName>
+    <ProjectName>FDumper</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -184,6 +184,7 @@
     <ClInclude Include="MainDlg.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="resource.h" />
+    <ClInclude Include="UpdateDlg.h" />
     <ClInclude Include="Win32Thunk.hpp" />
   </ItemGroup>
   <ItemGroup>
@@ -191,7 +192,6 @@
     <ClCompile Include="configmgr.cpp" />
     <ClCompile Include="dumphandler.cpp" />
     <ClCompile Include="FADumper.cpp" />
-    <ClCompile Include="FAFavorites.cpp" />
     <ClCompile Include="FAUpdater.cpp" />
     <ClCompile Include="FDumper.cpp" />
     <ClCompile Include="MainDlg.cpp" />
@@ -203,7 +203,7 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ResourceCompile Include="fDumper.rc" />
+    <ResourceCompile Include="FDumper.rc" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="icon2.ico" />

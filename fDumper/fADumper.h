@@ -17,10 +17,10 @@ public:
 private:
 	std::vector<FASubmission> GetMainGallery(const DownloadContext& ctx);
 	std::vector<FASubmission> GetScrapGallery(const DownloadContext& ctx);
+	std::vector<FASubmission> GetFavoritesGallery(const DownloadContext& ctx);
 
 	int DownloadInternal(std::vector<FASubmission> gallery, const std::wstring& path, const DownloadContext& ctx);
-
-	static CURLcode ThreadedImageDownload(int threadID, FASubmission submission, std::wstring path, ThreadLock<int>* progress, ThreadLock<int>* consolelock);
+	static CURLcode DownloadImage(int threadID, FASubmission submission, const std::wstring& path, const DownloadContext& ctx);
 
 	const int m_item;
 };
