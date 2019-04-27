@@ -58,7 +58,7 @@ int APIENTRY wWinMain(HINSTANCE /*hInstance*/, HINSTANCE /*hPrevInstance*/, LPWS
 	}
 	xlog::Critical("libcurl successfully instanced!");
 
-	log_console(xlog::LogLevel::critical, "FDumper v3.0.0 by Orangeprofessor!\n");
+	log_console(xlog::LogLevel::critical, "FDumper v3.0.1 by Orangeprofessor!\n");
 	log_console(xlog::LogLevel::normal, "See the readme for more info\n");
 
 	FDumper st;

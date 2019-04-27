@@ -75,7 +75,7 @@ void CBaseDumper::PrintDescription()
 
 bool CBaseDumper::ReadArgs(arg_t& arg)
 {
-	m_api = "http://faexport.boothale.net";
+	m_api = "https://faexport.boothale.net";
 
 	// primitive check for double dash
 	while (arg.i < arg.c && *(arg.v[arg.i]) == '-' && *(arg.v[arg.i] + 1) == '-')
