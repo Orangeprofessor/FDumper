@@ -2,8 +2,6 @@
 
 #include "CBaseDumper.h"
 
-struct FASubmission;
-
 class CFAUpdater : public CBaseDumper
 {
 	typedef CBaseDumper BaseClass;

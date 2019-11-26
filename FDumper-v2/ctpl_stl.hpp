@@ -22,8 +22,7 @@
 #ifndef __ctpl_stl_thread_pool_H__
 #define __ctpl_stl_thread_pool_H__
 
-#include "pch.h"
-
+#include "stdafx.h"
 
 #include <future>
 #include <functional>

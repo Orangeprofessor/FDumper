@@ -1,6 +1,5 @@
 #pragma once
 
-
 #if defined(_MSC_VER)
 
 #define CURL_STATICLIB

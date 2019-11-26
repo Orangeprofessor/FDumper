@@ -1,7 +1,6 @@
 #pragma once
 
-#include "pch.h"
-#include <string>
+#include "stdafx.h"
 
 // idk where tf i pasted this from but it work so
 

@@ -1,9 +1,6 @@
 #pragma once
 
-#include <fstream>
-#include <cstdarg>
-#include <ctime>
-#include <cstdio>
+#include "stdafx.h"
 
 // idk where tf i pasted this from but it work so
 
@@ -29,7 +26,7 @@ namespace xlog
 	public:
 		~Logger()
 		{
-			_output << std::endl;
+			m_output << std::endl;
 		}
 
 		static Logger& Instance()
@@ -66,7 +63,7 @@ namespace xlog
 			vsprintf_s(varbuf, _countof(varbuf), fmt, vargs);
 			sprintf_s(message, _countof(message), "%s %-12s %s", timebuf, sLogLevel[level], varbuf);
 
-			_output << message << std::endl;
+			m_output << message << std::endl;
 
 			return true;
 		}
@@ -74,19 +71,19 @@ namespace xlog
 	private:
 		Logger()
 		{
-			wchar_t temp[MAX_PATH] = {};
-			GetTempPath(MAX_PATH, temp);
-			std::wstring logpath(temp);
-			logpath.append(L"\\FDumper\\FDumper.log");
+			namespace fs = std::filesystem;
 
-			_output.open(logpath, std::ios::out | std::ios::app);
+			auto logpath = fs::temp_directory_path()/=(L"FDumper\\FDumper.log");
+			fs::create_directory(logpath);
+
+			m_output.open(logpath, std::ios::out | std::ios::app);
 		}
 
 		Logger(const Logger&) = delete;
 		Logger& operator = (const Logger&) = delete;
 
 	private:
-		std::ofstream _output;
+		std::ofstream m_output;
 	};
 
 
