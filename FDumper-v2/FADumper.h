@@ -6,9 +6,12 @@ struct FASubmission;
 
 class CFADumper : public CBaseDumper
 {
+	CFADumper(const CFADumper&) = delete;
+	CFADumper& operator=(const CFADumper&) = delete;
+
 	typedef CBaseDumper BaseClass;
 public:
-	CFADumper(ConfigMgr& mgr, const int item) : BaseClass(mgr) {}
+	CFADumper(ConfigMgr& mgr) : BaseClass(mgr) {}
 
 	virtual int Action(const DownloadContext& ctx) override;
 

@@ -5,7 +5,7 @@
 int main(int argc, char *argv[])
 {
 	QApplication a(argc, argv);
-	FDumperv2 w;
-	w.show();
+	auto fdumper = FDumperv2::getInstance();
+	fdumper->show();
 	return a.exec();
 }

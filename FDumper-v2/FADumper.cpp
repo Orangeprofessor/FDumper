@@ -31,14 +31,13 @@ int CFADumper::Action(const DownloadContext& ctx)
 
 	xlog::Normal("Finished processing user gallery '%s'\n", ctx.username.c_str());
 
-
 	return 0;
 }
 
 int CFADumper::Download(const DownloadContext& ctx)
 {
 	auto workingdir = ctx.path;
-	auto userdata = workingdir; userdata.operator/=(L"userdata");
+	auto userdata = workingdir; userdata/=(L"userdata");
 
 	xlog::Verbose("Dumping gallery '%s' to '%s'", ctx.username.c_str(), workingdir.string().c_str());
 
@@ -62,7 +61,7 @@ int CFADumper::Download(const DownloadContext& ctx)
 	std::string pfplink = tempdoc.FindMember("avatar")->value.GetString();
 	curl.SetUrl(pfplink);
 
-	if (curl.DownloadToDisk(userdata.operator/=(L"pfp.png")) || curl.GetHTTPCode() != 200) {
+	if (curl.DownloadToDisk(userdata/=(L"pfp.png")) || curl.GetHTTPCode() != 200) {
 		//uhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh
 	}
 
@@ -70,7 +69,7 @@ int CFADumper::Download(const DownloadContext& ctx)
 
 	if (ctx.gallery & faGalleryFlags::SCRAPS)
 	{
-		auto scrapspath = workingdir; scrapspath.operator/=(L"Scraps");
+		auto scrapspath = workingdir; scrapspath/=(L"Scraps");
 		std::filesystem::create_directory(scrapspath);
 
 		auto scrapgallery = GetScrapGallery(ctx);
@@ -116,8 +115,7 @@ int CFADumper::Download(const DownloadContext& ctx)
 
 	if (ctx.gallery & faGalleryFlags::FAVORITES)
 	{
-		//std::wstring favesdir = ctx.path + L"\\" + std::wstring(L"favorites");
-		auto favoritespath = workingdir; favoritespath.operator/=(L"favorites");
+		auto favoritespath = workingdir; favoritespath/=(L"favorites");
 		std::filesystem::create_directory(favoritespath);
 
 		auto favorites = GetFavoritesGallery(ctx);

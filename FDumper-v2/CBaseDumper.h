@@ -50,6 +50,10 @@ public:
 		return curl_easy_strerror(errcode);
 	}
 
+	inline int GetHTTPCode() {
+		return m_httpcode;
+	}
+
 	CURLcode DownloadToBuffer(std::string& buffer)
 	{
 		SetOpt(CURLOPT_WRITEFUNCTION, writebuffer);
@@ -76,10 +80,6 @@ public:
 		curl_easy_getinfo(m_curl.get(), CURLINFO_RESPONSE_CODE, &m_httpcode);
 
 		return std::fclose(fp), code;
-	}
-
-	inline int GetHTTPCode() {
-		return m_httpcode;
 	}
 
 	template<typename T>
@@ -233,6 +233,11 @@ public:
 		return *this;
 	}
 	operator T() const {
+		std::lock_guard<std::mutex> lock(m_mutex);
+		return m_protected;
+	}
+
+	T GetType() const {
 		std::lock_guard<std::mutex> lock(m_mutex);
 		return m_protected;
 	}

@@ -14,16 +14,6 @@
    <string>FDumperv2</string>
   </property>
   <widget class="QWidget" name="centralWidget">
-   <widget class="QListView" name="ImageListtxt">
-    <property name="geometry">
-     <rect>
-      <x>10</x>
-      <y>20</y>
-      <width>306</width>
-      <height>176</height>
-     </rect>
-    </property>
-   </widget>
    <widget class="QTabWidget" name="galleryTabs">
     <property name="geometry">
      <rect>
@@ -52,16 +42,6 @@
      </attribute>
     </widget>
    </widget>
-   <widget class="QListView" name="queueList">
-    <property name="geometry">
-     <rect>
-      <x>10</x>
-      <y>365</y>
-      <width>306</width>
-      <height>131</height>
-     </rect>
-    </property>
-   </widget>
    <widget class="QGroupBox" name="groupBox">
     <property name="geometry">
      <rect>
@@ -77,22 +57,29 @@
     <widget class="QWidget" name="layoutWidget">
      <property name="geometry">
       <rect>
-       <x>5</x>
-       <y>25</y>
-       <width>306</width>
-       <height>25</height>
+       <x>10</x>
+       <y>15</y>
+       <width>301</width>
+       <height>161</height>
       </rect>
      </property>
-     <layout class="QHBoxLayout" name="horizontalLayout">
+     <layout class="QVBoxLayout" name="verticalLayout_3">
       <item>
-       <widget class="QLineEdit" name="queueLineInput"/>
+       <layout class="QHBoxLayout" name="horizontalLayout">
+        <item>
+         <widget class="QLineEdit" name="queueLineInput"/>
+        </item>
+        <item>
+         <widget class="QPushButton" name="addToQueue">
+          <property name="text">
+           <string>Queue</string>
+          </property>
+         </widget>
+        </item>
+       </layout>
       </item>
       <item>
-       <widget class="QPushButton" name="addToQueue">
-        <property name="text">
-         <string>Queue</string>
-        </property>
-       </widget>
+       <widget class="QTableView" name="queueTable"/>
       </item>
      </layout>
     </widget>
@@ -122,6 +109,16 @@
     <property name="title">
      <string>Image List</string>
     </property>
+    <widget class="QTableView" name="reportView">
+     <property name="geometry">
+      <rect>
+       <x>10</x>
+       <y>20</y>
+       <width>301</width>
+       <height>176</height>
+      </rect>
+     </property>
+    </widget>
    </widget>
    <widget class="QGroupBox" name="groupBox_4">
     <property name="geometry">
@@ -199,13 +196,35 @@
     <zorder>NSFWonly</zorder>
     <zorder>ctfilterFavs</zorder>
    </widget>
+   <widget class="QWidget" name="layoutWidget">
+    <property name="geometry">
+     <rect>
+      <x>0</x>
+      <y>0</y>
+      <width>2</width>
+      <height>2</height>
+     </rect>
+    </property>
+    <layout class="QVBoxLayout" name="verticalLayout"/>
+   </widget>
+   <widget class="QWidget" name="layoutWidget">
+    <property name="geometry">
+     <rect>
+      <x>0</x>
+      <y>0</y>
+      <width>2</width>
+      <height>2</height>
+     </rect>
+    </property>
+    <layout class="QVBoxLayout" name="verticalLayout_2"/>
+   </widget>
+   <zorder>layoutWidget</zorder>
+   <zorder>layoutWidget</zorder>
    <zorder>groupBox</zorder>
    <zorder>groupBox_2</zorder>
    <zorder>layoutWidget</zorder>
    <zorder>groupBox_4</zorder>
    <zorder>groupBox_3</zorder>
-   <zorder>queueList</zorder>
-   <zorder>ImageListtxt</zorder>
    <zorder>galleryTabs</zorder>
   </widget>
   <widget class="QMenuBar" name="menuBar">
@@ -214,7 +233,7 @@
      <x>0</x>
      <y>0</y>
      <width>689</width>
-     <height>21</height>
+     <height>26</height>
     </rect>
    </property>
   </widget>
